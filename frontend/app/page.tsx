@@ -12,38 +12,70 @@ type PreviewResponse = {
   cif: string;
 };
 
-const EXAMPLE_CIF = `# generated using pymatgen
-data_Na5ScBr6_example
-_symmetry_space_group_name_H-M   'P 1'
-_cell_length_a   7.2385
-_cell_length_b   7.2384
-_cell_length_c   13.1410
-_cell_angle_alpha   89.9909
-_cell_angle_beta    90.0037
-_cell_angle_gamma   120.0132
-_symmetry_Int_Tables_number   1
-
+const EXAMPLE_CIF = `data_Si2V1
+_symmetry_space_group_name_H-M   'P1'
+_cell_length_a   9.295831
+_cell_length_b   6.197221
+_cell_length_c   10.898132
+_cell_angle_alpha   90.000000
+_cell_angle_beta    90.000000
+_cell_angle_gamma   120.000000
+_cell_volume   543.710732
+_cell_formula_units_Z   1
 loop_
-_symmetry_equiv_pos_site_id
-_symmetry_equiv_pos_as_xyz
-1  x,y,z
-
-loop_
-_atom_site_type_symbol
-_atom_site_label
-_atom_site_fract_x
-_atom_site_fract_y
-_atom_site_fract_z
-Na  Na1  0.0000  0.0000  0.0000
-Na  Na2  0.3333  0.6667  0.2500
-Na  Na3  0.6667  0.3333  0.7500
-Sc  Sc1  0.2500  0.2500  0.5000
-Br  Br1  0.1200  0.2200  0.3300
-Br  Br2  0.4200  0.5200  0.6300
-Br  Br3  0.7200  0.8200  0.1300
-Br  Br4  0.1800  0.7800  0.5800
-Br  Br5  0.5800  0.1800  0.0800
-`;
+ _atom_site_label
+ _atom_site_type_symbol
+ _atom_site_fract_x
+ _atom_site_fract_y
+ _atom_site_fract_z
+Na1 Na 0.111111 0.333333 0.750000
+Na2 Na 0.222222 0.166667 0.250000
+Mn1 Mn 0.000000 0.000000 0.000000
+Mn2 Mn 0.000000 0.000000 0.500000
+O1 O 0.111111 0.333333 0.401696
+O2 O 0.222222 0.166667 0.598304
+O3 O 0.222222 0.166667 0.901696
+O4 O 0.111111 0.333333 0.098304
+Na3 Na 0.111111 0.833333 0.750000
+Na4 Na 0.222222 0.666667 0.250000
+Mn3 Mn 0.000000 0.500000 0.000000
+Mn4 Mn 0.000000 0.500000 0.500000
+O5 O 0.111111 0.833333 0.401696
+O6 O 0.222222 0.666667 0.598304
+O7 O 0.222222 0.666667 0.901696
+O8 O 0.111111 0.833333 0.098304
+Na5 Na 0.444444 0.333333 0.750000
+Na6 Na 0.555556 0.166667 0.250000
+Mn5 Mn 0.333333 0.000000 0.000000
+Si1 Si 0.333333 0.000000 0.500000
+O9 O 0.444444 0.333333 0.401696
+O10 O 0.555556 0.166667 0.598304
+O11 O 0.555556 0.166667 0.901696
+O12 O 0.444444 0.333333 0.098304
+Na7 Na 0.444444 0.833333 0.750000
+Na8 Na 0.555556 0.666667 0.250000
+Mn6 Mn 0.333333 0.500000 0.000000
+Si2 Si 0.333333 0.500000 0.500000
+O13 O 0.444444 0.833333 0.401696
+O14 O 0.555556 0.666667 0.598304
+O15 O 0.555556 0.666667 0.901696
+O16 O 0.444444 0.833333 0.098304
+Na9 Na 0.777778 0.333333 0.750000
+Na10 Na 0.888889 0.166667 0.250000
+Mn7 Mn 0.666667 0.000000 0.000000
+Mn8 Mn 0.666667 0.000000 0.500000
+O17 O 0.777778 0.333333 0.401696
+O18 O 0.888889 0.166667 0.598304
+O19 O 0.888889 0.166667 0.901696
+O20 O 0.777778 0.333333 0.098304
+Na11 Na 0.777778 0.833333 0.750000
+Na12 Na 0.888889 0.666667 0.250000
+Mn9 Mn 0.666667 0.500000 0.000000
+V1 V 0.666667 0.500000 0.500000
+O21 O 0.777778 0.833333 0.401696
+O22 O 0.888889 0.666667 0.598304
+O23 O 0.888889 0.666667 0.901696
+O24 O 0.777778 0.833333 0.098304`;
 
 function Spinner({ label }: { label: string }) {
   return (
