@@ -20,9 +20,10 @@ export default function CrystalViewer({ cifText, className = "" }: Props) {
       const $3Dmol = await import("3dmol");
       if (!mounted || !containerRef.current) return;
 
-      containerRef.current.innerHTML = "";
+      const container = containerRef.current;
+      container.innerHTML = "";
 
-      const viewer = $3Dmol.createViewer(containerRef.current, {
+      const viewer = $3Dmol.createViewer(container, {
         backgroundColor: "white",
         antialias: true,
       });
@@ -70,7 +71,7 @@ export default function CrystalViewer({ cifText, className = "" }: Props) {
   if (!cifText) {
     return (
       <div
-        className={`flex h-[360px] items-center justify-center rounded-[20px] border border-dashed border-slate-200 bg-slate-50 text-slate-500 ${className}`}
+        className={`relative flex h-[360px] w-full items-center justify-center overflow-hidden rounded-[20px] border border-dashed border-slate-200 bg-slate-50 text-slate-500 ${className}`}
       >
         No 3D preview yet.
       </div>
@@ -78,9 +79,12 @@ export default function CrystalViewer({ cifText, className = "" }: Props) {
   }
 
   return (
-    <div
-      ref={containerRef}
-      className={`h-[360px] w-full overflow-hidden rounded-[20px] bg-white ${className}`}
-    />
+    <div className={`relative h-[360px] w-full overflow-hidden rounded-[20px] bg-white ${className}`}>
+      <div
+        ref={containerRef}
+        className="relative h-full w-full overflow-hidden rounded-[20px]"
+        style={{ position: "relative" }}
+      />
+    </div>
   );
 }
