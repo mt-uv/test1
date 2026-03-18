@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import CrystalViewer from "./components/CrystalViewer";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_RAILWAY_API_URL || "http://localhost:8000";
@@ -84,23 +85,21 @@ export default function Page() {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(124,58,237,0.10),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(59,130,246,0.10),_transparent_24%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] text-slate-900">
       <div className="mx-auto max-w-7xl px-6 py-8 md:px-10 md:py-12">
-        {/* Top bar */}
-        <div className="mb-10 flex items-center justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/70 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-slate-500 shadow-sm backdrop-blur">
-              <span className="h-2 w-2 rounded-full bg-violet-500 shadow-[0_0_12px_rgba(139,92,246,0.9)]" />
-              Materials ML
-            </div>
-            <h1 className="mt-5 max-w-4xl text-5xl font-semibold tracking-tight text-slate-950 md:text-6xl">
-              Na-ion Materials ML Platform
-            </h1>
-            <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600 md:text-2xl md:leading-9">
-              Uploaded-structure relaxation in one interface.
-            </p>
+        <div className="mb-10">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/70 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-slate-500 shadow-sm backdrop-blur">
+            <span className="h-2 w-2 rounded-full bg-violet-500 shadow-[0_0_12px_rgba(139,92,246,0.9)]" />
+            Materials ML
           </div>
+
+          <h1 className="mt-5 max-w-4xl text-5xl font-semibold tracking-tight text-slate-950 md:text-6xl">
+            Na-ion Materials ML Platform
+          </h1>
+
+          <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600 md:text-2xl md:leading-9">
+            Uploaded-structure relaxation in one interface.
+          </p>
         </div>
 
-        {/* Tabs */}
         <div className="mb-8 flex flex-wrap gap-3">
           <button className="rounded-2xl border border-slate-200 bg-white/70 px-6 py-3 text-base font-medium text-slate-500 shadow-sm backdrop-blur transition hover:border-slate-300 hover:bg-white md:text-lg">
             Cathode Explorer
@@ -113,7 +112,6 @@ export default function Page() {
           </button>
         </div>
 
-        {/* Main Card */}
         <section className="relative overflow-hidden rounded-[32px] border border-white/60 bg-white/75 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl md:p-10">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(124,58,237,0.09),_transparent_22%),radial-gradient(circle_at_bottom_left,_rgba(59,130,246,0.08),_transparent_22%)]" />
 
@@ -126,7 +124,6 @@ export default function Page() {
               then stream the relaxation output live.
             </p>
 
-            {/* Upload */}
             <div className="mt-10">
               <label className="inline-flex cursor-pointer items-center rounded-2xl border border-slate-200 bg-white px-7 py-4 text-lg font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md">
                 Upload structure file
@@ -146,7 +143,6 @@ export default function Page() {
               )}
             </div>
 
-            {/* Controls */}
             <div className="mt-10 grid grid-cols-1 gap-5 xl:grid-cols-2">
               <div className="rounded-[28px] border border-slate-200/80 bg-white/80 p-6 shadow-sm">
                 <label className="mb-4 block text-base font-medium text-slate-500">
@@ -202,7 +198,6 @@ export default function Page() {
               </div>
             </div>
 
-            {/* Buttons */}
             <div className="mt-8 flex flex-wrap gap-4">
               <button
                 onClick={handlePreview}
@@ -220,9 +215,7 @@ export default function Page() {
               </button>
             </div>
 
-            {/* Panels */}
-            <div className="mt-10 grid grid-cols-1 gap-6 2xl:grid-cols-2">
-              {/* Preview panel */}
+            <div className="mt-10 grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
               <div className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/85 shadow-sm">
                 <div className="border-b border-slate-200/80 px-7 py-5">
                   <h3 className="text-2xl font-semibold tracking-tight text-slate-950 md:text-3xl">
@@ -237,28 +230,40 @@ export default function Page() {
                     </div>
                   ) : (
                     <>
-                      <div className="space-y-2">
+                      <div className="mb-5 space-y-2">
                         <p className="text-base text-slate-700">
-                          <span className="font-semibold text-slate-950">File:</span>{" "}
+                          <span className="font-semibold text-slate-950">
+                            File:
+                          </span>{" "}
                           {preview.filename}
                         </p>
                         <p className="text-base text-slate-700">
-                          <span className="font-semibold text-slate-950">Atoms:</span>{" "}
+                          <span className="font-semibold text-slate-950">
+                            Atoms:
+                          </span>{" "}
                           {preview.n_atoms}
                         </p>
                       </div>
 
-                      <textarea
-                        readOnly
-                        value={preview.cif}
-                        className="mt-5 h-80 w-full rounded-[24px] border border-slate-200 bg-slate-50 p-5 font-mono text-[13px] leading-6 text-slate-700 outline-none"
-                      />
+                      <CrystalViewer cifText={preview.cif} />
+
+                      <details className="mt-5 rounded-2xl border border-slate-200 bg-slate-50">
+                        <summary className="cursor-pointer px-5 py-4 text-sm font-medium text-slate-700">
+                          Show raw CIF
+                        </summary>
+                        <div className="px-5 pb-5">
+                          <textarea
+                            readOnly
+                            value={preview.cif}
+                            className="mt-2 h-64 w-full rounded-[20px] border border-slate-200 bg-white p-4 font-mono text-[12px] leading-6 text-slate-700 outline-none"
+                          />
+                        </div>
+                      </details>
                     </>
                   )}
                 </div>
               </div>
 
-              {/* Output panel */}
               <div className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/85 shadow-sm">
                 <div className="border-b border-slate-200/80 px-7 py-5">
                   <h3 className="text-2xl font-semibold tracking-tight text-slate-950 md:text-3xl">
