@@ -115,6 +115,42 @@ function TabButton({
   );
 }
 
+function InputCard({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-[28px] border border-slate-200/80 bg-white/85 p-6 shadow-sm">
+      <label className="mb-4 block text-base font-medium text-slate-500">
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function SectionCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/85 shadow-sm">
+      <div className="border-b border-slate-200/80 px-7 py-5">
+        <h3 className="text-2xl font-semibold tracking-tight text-slate-950 md:text-3xl">
+          {title}
+        </h3>
+      </div>
+      <div className="p-7">{children}</div>
+    </div>
+  );
+}
+
 function AllAtomMSDChart({
   timePs,
   msdBySpecies,
@@ -124,8 +160,8 @@ function AllAtomMSDChart({
   msdBySpecies: Record<string, number[]>;
   live: boolean;
 }) {
-  const width = 720;
-  const height = 320;
+  const width = 900;
+  const height = 380;
   const padL = 56;
   const padR = 18;
   const padT = 18;
@@ -527,181 +563,161 @@ function GenericMDPanel() {
           Langevin MD, and stream live species-resolved MSD.
         </p>
 
-        <div className="mt-10 flex flex-wrap items-center gap-4">
-          <label className="inline-flex cursor-pointer items-center rounded-2xl border border-slate-200 bg-white px-7 py-4 text-lg font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md">
-            Upload structure file
-            <input
-              type="file"
-              accept=".cif,.vasp,.poscar,.xyz,.traj"
-              className="hidden"
-              onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
-            />
-          </label>
+        <div className="mt-10 grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+          <div className="space-y-6">
+            <SectionCard title="Simulation Setup">
+              <div className="flex flex-wrap items-center gap-4">
+                <label className="inline-flex cursor-pointer items-center rounded-2xl border border-slate-200 bg-white px-7 py-4 text-lg font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md">
+                  Upload structure file
+                  <input
+                    type="file"
+                    accept=".cif,.vasp,.poscar,.xyz,.traj"
+                    className="hidden"
+                    onChange={(e) =>
+                      handleFileChange(e.target.files?.[0] || null)
+                    }
+                  />
+                </label>
 
-          {file && (
-            <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              {file.name}
-            </div>
-          )}
-
-          {previewAtomCount != null && (
-            <div className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-4 py-2 text-sm font-medium text-violet-700">
-              <span className="h-2 w-2 rounded-full bg-violet-500" />
-              {previewAtomCount} atoms loaded
-            </div>
-          )}
-        </div>
-
-        <div className="mt-10 grid grid-cols-1 gap-5 xl:grid-cols-2">
-          <div className="rounded-[28px] border border-slate-200/80 bg-white/80 p-6 shadow-sm">
-            <label className="mb-4 block text-base font-medium text-slate-500">
-              ML potential
-            </label>
-            <select
-              value={potential}
-              onChange={(e) => setPotential(e.target.value as PotentialOption)}
-              className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-xl text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white"
-            >
-              <option value="uma">UMA</option>
-              <option value="orb">ORB</option>
-            </select>
-          </div>
-
-          <div className="rounded-[28px] border border-slate-200/80 bg-white/80 p-6 shadow-sm">
-            <label className="mb-4 block text-base font-medium text-slate-500">
-              Temperature (K)
-            </label>
-            <input
-              type="number"
-              value={temperatureK}
-              onChange={(e) => setTemperatureK(e.target.value)}
-              className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-2xl text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white"
-            />
-          </div>
-        </div>
-
-        <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-2">
-          <div className="rounded-[28px] border border-slate-200/80 bg-white/80 p-6 shadow-sm">
-            <label className="mb-4 block text-base font-medium text-slate-500">
-              Timestep (fs)
-            </label>
-            <input
-              type="number"
-              step="0.1"
-              value={timestepFs}
-              onChange={(e) => setTimestepFs(e.target.value)}
-              className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-2xl text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white"
-            />
-          </div>
-
-          <div className="rounded-[28px] border border-slate-200/80 bg-white/80 p-6 shadow-sm">
-            <label className="mb-4 block text-base font-medium text-slate-500">
-              Total time (ps)
-            </label>
-            <input
-              type="number"
-              step="0.1"
-              value={totalTimePs}
-              onChange={(e) => setTotalTimePs(e.target.value)}
-              className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-2xl text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white"
-            />
-          </div>
-        </div>
-
-        <div className="mt-8 flex flex-wrap items-center gap-4">
-          <button
-            onClick={runMD}
-            disabled={!file || loading}
-            className="rounded-2xl bg-[linear-gradient(135deg,#0f172a_0%,#111827_100%)] px-7 py-4 text-lg font-semibold text-white shadow-[0_12px_30px_rgba(15,23,42,0.25)] transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {loading ? "Running MD..." : "Run MD"}
-          </button>
-
-          <button
-            onClick={stopMD}
-            disabled={!loading || !sessionId}
-            className="rounded-2xl border border-rose-200 bg-rose-50 px-7 py-4 text-lg font-medium text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Stop MD
-          </button>
-
-          {loading && <Spinner label="MD in progress..." />}
-        </div>
-
-        <div className="mt-8 rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] p-5 text-sm text-slate-700 shadow-inner">
-          {stage}
-        </div>
-
-        <div className="mt-10 grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-          <div className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/85 shadow-sm">
-            <div className="border-b border-slate-200/80 px-7 py-5">
-              <h3 className="text-2xl font-semibold tracking-tight text-slate-950 md:text-3xl">
-                Structure Preview
-              </h3>
-            </div>
-
-            <div className="p-7">
-              {!shownCif ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-6 py-10 text-center text-slate-500">
-                  No preview yet.
-                </div>
-              ) : (
-                <>
-                  <div className="rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm">
-                    <CrystalViewer cifText={shownCif} />
+                {file && (
+                  <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                    {file.name}
                   </div>
+                )}
 
-                  <details className="mt-5 rounded-2xl border border-slate-200 bg-slate-50">
-                    <summary className="cursor-pointer px-5 py-4 text-sm font-medium text-slate-700">
-                      Show raw CIF
-                    </summary>
-                    <div className="px-5 pb-5">
-                      <textarea
-                        readOnly
-                        value={shownCif}
-                        className="mt-2 h-64 w-full rounded-[20px] border border-slate-200 bg-white p-4 font-mono text-[12px] leading-6 text-slate-700 outline-none"
-                      />
-                    </div>
-                  </details>
-                </>
-              )}
-            </div>
+                {previewAtomCount != null && (
+                  <div className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-4 py-2 text-sm font-medium text-violet-700">
+                    <span className="h-2 w-2 rounded-full bg-violet-500" />
+                    {previewAtomCount} atoms loaded
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
+                <InputCard label="ML potential">
+                  <select
+                    value={potential}
+                    onChange={(e) =>
+                      setPotential(e.target.value as PotentialOption)
+                    }
+                    className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-xl text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white"
+                  >
+                    <option value="uma">UMA</option>
+                    <option value="orb">ORB</option>
+                  </select>
+                </InputCard>
+
+                <InputCard label="Temperature (K)">
+                  <input
+                    type="number"
+                    value={temperatureK}
+                    onChange={(e) => setTemperatureK(e.target.value)}
+                    className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-2xl text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white"
+                  />
+                </InputCard>
+
+                <InputCard label="Timestep (fs)">
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={timestepFs}
+                    onChange={(e) => setTimestepFs(e.target.value)}
+                    className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-2xl text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white"
+                  />
+                </InputCard>
+
+                <InputCard label="Total time (ps)">
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={totalTimePs}
+                    onChange={(e) => setTotalTimePs(e.target.value)}
+                    className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-2xl text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white"
+                  />
+                </InputCard>
+              </div>
+
+              <div className="mt-8 flex flex-wrap items-center gap-4">
+                <button
+                  onClick={runMD}
+                  disabled={!file || loading}
+                  className="rounded-2xl bg-[linear-gradient(135deg,#0f172a_0%,#111827_100%)] px-7 py-4 text-lg font-semibold text-white shadow-[0_12px_30px_rgba(15,23,42,0.25)] transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {loading ? "Running MD..." : "Run MD"}
+                </button>
+
+                <button
+                  onClick={stopMD}
+                  disabled={!loading || !sessionId}
+                  className="rounded-2xl border border-rose-200 bg-rose-50 px-7 py-4 text-lg font-medium text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Stop MD
+                </button>
+
+                {loading && <Spinner label="MD in progress..." />}
+              </div>
+
+              <div className="mt-6 rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] p-5 text-sm text-slate-700 shadow-inner">
+                {stage}
+              </div>
+            </SectionCard>
           </div>
 
-          <div className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/85 shadow-sm">
-            <div className="border-b border-slate-200/80 px-7 py-5">
-              <h3 className="text-2xl font-semibold tracking-tight text-slate-950 md:text-3xl">
-                Live MSD
-              </h3>
-            </div>
-
-            <div className="p-7">
-              <AllAtomMSDChart
-                timePs={timePs}
-                msdBySpecies={msdBySpecies}
-                live={loading}
-              />
-
-              {resultId && (
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <a
-                    href={`${API_BASE}/download-upload-md-cif/${resultId}`}
-                    className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-base font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md"
-                  >
-                    Download final CIF
-                  </a>
-
-                  <a
-                    href={`${API_BASE}/download-upload-md-traj/${resultId}`}
-                    className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-base font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md"
-                  >
-                    Download MD trajectory
-                  </a>
+          <SectionCard title="Structure Preview">
+            {!shownCif ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-6 py-12 text-center text-slate-500">
+                No preview yet.
+              </div>
+            ) : (
+              <>
+                <div className="rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm">
+                  <CrystalViewer cifText={shownCif} />
                 </div>
-              )}
-            </div>
-          </div>
+
+                <details className="mt-5 rounded-2xl border border-slate-200 bg-slate-50">
+                  <summary className="cursor-pointer px-5 py-4 text-sm font-medium text-slate-700">
+                    Show raw CIF
+                  </summary>
+                  <div className="px-5 pb-5">
+                    <textarea
+                      readOnly
+                      value={shownCif}
+                      className="mt-2 h-64 w-full rounded-[20px] border border-slate-200 bg-white p-4 font-mono text-[12px] leading-6 text-slate-700 outline-none"
+                    />
+                  </div>
+                </details>
+              </>
+            )}
+          </SectionCard>
+        </div>
+
+        <div className="mt-8">
+          <SectionCard title="Live MSD Output">
+            <AllAtomMSDChart
+              timePs={timePs}
+              msdBySpecies={msdBySpecies}
+              live={loading}
+            />
+
+            {resultId && (
+              <div className="mt-6 flex flex-wrap gap-3">
+                <a
+                  href={`${API_BASE}/download-upload-md-cif/${resultId}`}
+                  className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-base font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md"
+                >
+                  Download final CIF
+                </a>
+
+                <a
+                  href={`${API_BASE}/download-upload-md-traj/${resultId}`}
+                  className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-base font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md"
+                >
+                  Download MD trajectory
+                </a>
+              </div>
+            )}
+          </SectionCard>
         </div>
       </div>
     </section>
@@ -926,207 +942,185 @@ export default function Page() {
                 then stream the relaxation output live.
               </p>
 
-              <div className="mt-10 flex flex-wrap items-center gap-4">
-                <label className="inline-flex cursor-pointer items-center rounded-2xl border border-slate-200 bg-white px-7 py-4 text-lg font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md">
-                  Upload structure file
-                  <input
-                    type="file"
-                    accept=".cif,.vasp,.poscar"
-                    className="hidden"
-                    onChange={(e) => setFile(e.target.files?.[0] || null)}
-                  />
-                </label>
+              <div className="mt-10 grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+                <div className="space-y-6">
+                  <SectionCard title="Relaxation Setup">
+                    <div className="flex flex-wrap items-center gap-4">
+                      <label className="inline-flex cursor-pointer items-center rounded-2xl border border-slate-200 bg-white px-7 py-4 text-lg font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md">
+                        Upload structure file
+                        <input
+                          type="file"
+                          accept=".cif,.vasp,.poscar"
+                          className="hidden"
+                          onChange={(e) =>
+                            setFile(e.target.files?.[0] || null)
+                          }
+                        />
+                      </label>
 
-                <button
-                  onClick={handleUseExample}
-                  className="rounded-2xl border border-violet-200 bg-violet-50 px-7 py-4 text-lg font-medium text-violet-700 shadow-sm transition hover:bg-violet-100"
-                >
-                  Use example structure
-                </button>
-              </div>
-
-              {file && (
-                <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  {file.name}
-                </div>
-              )}
-
-              {!file && preview?.filename === "example.cif" && (
-                <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-violet-100 px-4 py-2 text-sm font-medium text-violet-700">
-                  <span className="h-2 w-2 rounded-full bg-violet-500" />
-                  Example structure loaded
-                </div>
-              )}
-
-              <div className="mt-10 grid grid-cols-1 gap-5 xl:grid-cols-2">
-                <div className="rounded-[28px] border border-slate-200/80 bg-white/80 p-6 shadow-sm">
-                  <label className="mb-4 block text-base font-medium text-slate-500">
-                    ML potential
-                  </label>
-                  <select
-                    value={potential}
-                    onChange={(e) => setPotential(e.target.value)}
-                    className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-xl text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white"
-                  >
-                    <option value="uma">UMA</option>
-                    <option value="orb">ORB</option>
-                  </select>
-                </div>
-
-                <div className="rounded-[28px] border border-slate-200/80 bg-white/80 p-6 shadow-sm">
-                  <label className="mb-4 block text-base font-medium text-slate-500">
-                    Optimizer
-                  </label>
-                  <select
-                    value={optimizer}
-                    onChange={(e) => setOptimizer(e.target.value)}
-                    className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-xl text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white"
-                  >
-                    <option value="LBFGS">LBFGS</option>
-                    <option value="BFGS">BFGS</option>
-                    <option value="FIRE">FIRE</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-2">
-                <div className="rounded-[28px] border border-slate-200/80 bg-white/80 p-6 shadow-sm">
-                  <label className="mb-4 block text-base font-medium text-slate-500">
-                    Maximum force (eV/A)
-                  </label>
-                  <input
-                    value={fmax}
-                    onChange={(e) => setFmax(e.target.value)}
-                    className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-2xl text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white"
-                  />
-                </div>
-
-                <div className="rounded-[28px] border border-slate-200/80 bg-white/80 p-6 shadow-sm">
-                  <label className="mb-4 block text-base font-medium text-slate-500">
-                    Steps
-                  </label>
-                  <input
-                    value={steps}
-                    onChange={(e) => setSteps(e.target.value)}
-                    className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-2xl text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-8 flex flex-wrap items-center gap-4">
-                <button
-                  onClick={handlePreview}
-                  disabled={!file || previewLoading}
-                  className="rounded-2xl border border-slate-200 bg-white px-7 py-4 text-lg font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {previewLoading ? "Previewing..." : "Preview structure"}
-                </button>
-
-                <button
-                  onClick={handleRelax}
-                  disabled={running || (!file && !preview?.cif)}
-                  className="rounded-2xl bg-[linear-gradient(135deg,#0f172a_0%,#111827_100%)] px-7 py-4 text-lg font-semibold text-white shadow-[0_12px_30px_rgba(15,23,42,0.25)] transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {running ? "Running..." : "Run relaxation"}
-                </button>
-
-                {previewLoading && <Spinner label="Generating preview..." />}
-                {running && <Spinner label="Relaxation in progress..." />}
-              </div>
-
-              <div className="mt-10 grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-                <div className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/85 shadow-sm">
-                  <div className="border-b border-slate-200/80 px-7 py-5">
-                    <h3 className="text-2xl font-semibold tracking-tight text-slate-950 md:text-3xl">
-                      Structure Preview
-                    </h3>
-                  </div>
-
-                  <div className="p-7">
-                    {!preview ? (
-                      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-6 py-10 text-center text-slate-500">
-                        No preview yet.
-                      </div>
-                    ) : (
-                      <>
-                        <div className="mb-5 space-y-2">
-                          <p className="text-base text-slate-700">
-                            <span className="font-semibold text-slate-950">
-                              File:
-                            </span>{" "}
-                            {preview.filename}
-                          </p>
-                          <p className="text-base text-slate-700">
-                            <span className="font-semibold text-slate-950">
-                              Atoms:
-                            </span>{" "}
-                            {preview.n_atoms}
-                          </p>
-                        </div>
-
-                        <div className="rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm">
-                          <CrystalViewer cifText={preview.cif} />
-                        </div>
-
-                        <details className="mt-5 rounded-2xl border border-slate-200 bg-slate-50">
-                          <summary className="cursor-pointer px-5 py-4 text-sm font-medium text-slate-700">
-                            Show raw CIF
-                          </summary>
-                          <div className="px-5 pb-5">
-                            <textarea
-                              readOnly
-                              value={preview.cif}
-                              className="mt-2 h-64 w-full rounded-[20px] border border-slate-200 bg-white p-4 font-mono text-[12px] leading-6 text-slate-700 outline-none"
-                            />
-                          </div>
-                        </details>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/85 shadow-sm">
-                  <div className="border-b border-slate-200/80 px-7 py-5">
-                    <h3 className="text-2xl font-semibold tracking-tight text-slate-950 md:text-3xl">
-                      Relaxation Output
-                    </h3>
-                  </div>
-
-                  <div className="p-7">
-                    <div className="h-80 overflow-auto rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] p-5 font-mono text-[13px] leading-7 text-slate-700 shadow-inner">
-                      {logs.map((line, i) => (
-                        <div key={i}>{line}</div>
-                      ))}
+                      <button
+                        onClick={handleUseExample}
+                        className="rounded-2xl border border-violet-200 bg-violet-50 px-7 py-4 text-lg font-medium text-violet-700 shadow-sm transition hover:bg-violet-100"
+                      >
+                        Use example structure
+                      </button>
                     </div>
 
-                    {finalEnergy !== null && (
-                      <p className="mt-6 text-lg text-slate-700">
-                        Final energy:{" "}
-                        <span className="font-semibold text-slate-950">
-                          {finalEnergy.toFixed(6)} eV
-                        </span>
-                      </p>
-                    )}
-
-                    {resultId && (
-                      <div className="mt-6 flex flex-wrap gap-3">
-                        <a
-                          href={`${API_BASE}/download-relaxed-cif/${resultId}`}
-                          className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-base font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md"
-                        >
-                          Save relaxed CIF
-                        </a>
-                        <a
-                          href={`${API_BASE}/download-relax-traj/${resultId}`}
-                          className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-base font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md"
-                        >
-                          Save trajectory
-                        </a>
+                    {file && (
+                      <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                        {file.name}
                       </div>
                     )}
-                  </div>
+
+                    {!file && preview?.filename === "example.cif" && (
+                      <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-violet-100 px-4 py-2 text-sm font-medium text-violet-700">
+                        <span className="h-2 w-2 rounded-full bg-violet-500" />
+                        Example structure loaded
+                      </div>
+                    )}
+
+                    <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
+                      <InputCard label="ML potential">
+                        <select
+                          value={potential}
+                          onChange={(e) => setPotential(e.target.value)}
+                          className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-xl text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white"
+                        >
+                          <option value="uma">UMA</option>
+                          <option value="orb">ORB</option>
+                        </select>
+                      </InputCard>
+
+                      <InputCard label="Optimizer">
+                        <select
+                          value={optimizer}
+                          onChange={(e) => setOptimizer(e.target.value)}
+                          className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-xl text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white"
+                        >
+                          <option value="LBFGS">LBFGS</option>
+                          <option value="BFGS">BFGS</option>
+                          <option value="FIRE">FIRE</option>
+                        </select>
+                      </InputCard>
+
+                      <InputCard label="Maximum force (eV/A)">
+                        <input
+                          value={fmax}
+                          onChange={(e) => setFmax(e.target.value)}
+                          className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-2xl text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white"
+                        />
+                      </InputCard>
+
+                      <InputCard label="Steps">
+                        <input
+                          value={steps}
+                          onChange={(e) => setSteps(e.target.value)}
+                          className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-2xl text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white"
+                        />
+                      </InputCard>
+                    </div>
+
+                    <div className="mt-8 flex flex-wrap items-center gap-4">
+                      <button
+                        onClick={handlePreview}
+                        disabled={!file || previewLoading}
+                        className="rounded-2xl border border-slate-200 bg-white px-7 py-4 text-lg font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {previewLoading ? "Previewing..." : "Preview structure"}
+                      </button>
+
+                      <button
+                        onClick={handleRelax}
+                        disabled={running || (!file && !preview?.cif)}
+                        className="rounded-2xl bg-[linear-gradient(135deg,#0f172a_0%,#111827_100%)] px-7 py-4 text-lg font-semibold text-white shadow-[0_12px_30px_rgba(15,23,42,0.25)] transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {running ? "Running..." : "Run relaxation"}
+                      </button>
+
+                      {previewLoading && <Spinner label="Generating preview..." />}
+                      {running && <Spinner label="Relaxation in progress..." />}
+                    </div>
+                  </SectionCard>
                 </div>
+
+                <SectionCard title="Structure Preview">
+                  {!preview ? (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-6 py-12 text-center text-slate-500">
+                      No preview yet.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mb-5 space-y-2">
+                        <p className="text-base text-slate-700">
+                          <span className="font-semibold text-slate-950">
+                            File:
+                          </span>{" "}
+                          {preview.filename}
+                        </p>
+                        <p className="text-base text-slate-700">
+                          <span className="font-semibold text-slate-950">
+                            Atoms:
+                          </span>{" "}
+                          {preview.n_atoms}
+                        </p>
+                      </div>
+
+                      <div className="rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm">
+                        <CrystalViewer cifText={preview.cif} />
+                      </div>
+
+                      <details className="mt-5 rounded-2xl border border-slate-200 bg-slate-50">
+                        <summary className="cursor-pointer px-5 py-4 text-sm font-medium text-slate-700">
+                          Show raw CIF
+                        </summary>
+                        <div className="px-5 pb-5">
+                          <textarea
+                            readOnly
+                            value={preview.cif}
+                            className="mt-2 h-64 w-full rounded-[20px] border border-slate-200 bg-white p-4 font-mono text-[12px] leading-6 text-slate-700 outline-none"
+                          />
+                        </div>
+                      </details>
+                    </>
+                  )}
+                </SectionCard>
+              </div>
+
+              <div className="mt-8">
+                <SectionCard title="Relaxation Output">
+                  <div className="h-[28rem] overflow-auto rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] p-5 font-mono text-[13px] leading-7 text-slate-700 shadow-inner">
+                    {logs.map((line, i) => (
+                      <div key={i}>{line}</div>
+                    ))}
+                  </div>
+
+                  {finalEnergy !== null && (
+                    <p className="mt-6 text-lg text-slate-700">
+                      Final energy:{" "}
+                      <span className="font-semibold text-slate-950">
+                        {finalEnergy.toFixed(6)} eV
+                      </span>
+                    </p>
+                  )}
+
+                  {resultId && (
+                    <div className="mt-6 flex flex-wrap gap-3">
+                      <a
+                        href={`${API_BASE}/download-relaxed-cif/${resultId}`}
+                        className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-base font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md"
+                      >
+                        Save relaxed CIF
+                      </a>
+                      <a
+                        href={`${API_BASE}/download-relax-traj/${resultId}`}
+                        className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-base font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md"
+                      >
+                        Save trajectory
+                      </a>
+                    </div>
+                  )}
+                </SectionCard>
               </div>
             </div>
           </section>
