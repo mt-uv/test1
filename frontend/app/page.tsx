@@ -6,6 +6,12 @@ import CrystalViewer from "./components/CrystalViewer";
 const API_BASE =
   process.env.NEXT_PUBLIC_RAILWAY_API_URL || "http://localhost:8000";
 
+type PreviewResponse = {
+  filename: string;
+  n_atoms: number;
+  cif: string;
+};
+
 export default function Page() {
   const [file, setFile] = useState<File | null>(null);
   const [potential, setPotential] = useState("uma");
@@ -13,7 +19,7 @@ export default function Page() {
   const [fmax, setFmax] = useState("0.05");
   const [steps, setSteps] = useState("300");
 
-  const [preview, setPreview] = useState<any>(null);
+  const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [logs, setLogs] = useState<string[]>(["No output yet."]);
   const [running, setRunning] = useState(false);
   const [resultId, setResultId] = useState<string | null>(null);
@@ -30,7 +36,13 @@ export default function Page() {
       body: formData,
     });
 
-    const data = await res.json();
+    if (!res.ok) {
+      const text = await res.text();
+      setLogs([`Preview failed: ${text}`]);
+      return;
+    }
+
+    const data: PreviewResponse = await res.json();
     setPreview(data);
   }
 
@@ -54,6 +66,13 @@ export default function Page() {
       body: formData,
     });
 
+    if (!sessionRes.ok) {
+      const text = await sessionRes.text();
+      setLogs((prev) => [...prev, `Could not create session: ${text}`]);
+      setRunning(false);
+      return;
+    }
+
     const { session_id } = await sessionRes.json();
 
     const es = new EventSource(`${API_BASE}/relax-upload-stream/${session_id}`);
@@ -75,11 +94,11 @@ export default function Page() {
       es.close();
     });
 
-    es.onerror = () => {
+    es.addEventListener("error", () => {
       setLogs((prev) => [...prev, "Stream error"]);
       setRunning(false);
       es.close();
-    };
+    });
   }
 
   return (
@@ -119,6 +138,7 @@ export default function Page() {
             <h2 className="text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
               Relax Structure
             </h2>
+
             <p className="mt-4 max-w-4xl text-lg leading-8 text-slate-600 md:text-xl">
               Upload a structure, preview it, choose potential and optimizer,
               then stream the relaxation output live.
@@ -245,7 +265,9 @@ export default function Page() {
                         </p>
                       </div>
 
-                      <CrystalViewer cifText={preview.cif} />
+                      <div className="rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm">
+                        <CrystalViewer cifText={preview.cif} />
+                      </div>
 
                       <details className="mt-5 rounded-2xl border border-slate-200 bg-slate-50">
                         <summary className="cursor-pointer px-5 py-4 text-sm font-medium text-slate-700">
