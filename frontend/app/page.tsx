@@ -141,7 +141,7 @@ export default function Page() {
     setFile(null);
     setPreview({
       filename: "example.cif",
-      n_atoms: 9,
+      n_atoms: 48,
       cif: EXAMPLE_CIF,
     });
     setLogs(["Loaded example structure."]);
