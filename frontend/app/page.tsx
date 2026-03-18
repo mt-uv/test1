@@ -239,7 +239,7 @@ export default function Page() {
           </div>
 
           <h1 className="mt-5 max-w-4xl text-5xl font-semibold tracking-tight text-slate-950 md:text-6xl">
-            Na-ion Materials ML Platform
+            Molecular Simulations with Machine Learning Potentials
           </h1>
 
           <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600 md:text-2xl md:leading-9">
