@@ -462,8 +462,19 @@ function GenericMDPanel() {
     }
   }
 
+  function handleUseExampleMD() {
+    setFile(null);
+    setPreviewCif(EXAMPLE_CIF);
+    setPreviewAtomCount(48);
+    setFinalCif("");
+    setResultId(null);
+    setTimePs([]);
+    setMsdBySpecies({});
+    setStage("Loaded example structure.");
+  }
+
   async function runMD() {
-    if (!file) {
+    if (!file && !previewCif) {
       setStage("Upload a structure file first.");
       return;
     }
@@ -477,7 +488,14 @@ function GenericMDPanel() {
 
     try {
       const form = new FormData();
-      form.append("file", file);
+
+      if (file) {
+        form.append("file", file);
+      } else {
+        const blob = new Blob([previewCif], { type: "text/plain" });
+        form.append("file", blob, "example.cif");
+      }
+
       form.append("potential", potential);
       form.append("temperature_k", temperatureK);
       form.append("timestep_fs", timestepFs);
@@ -620,20 +638,34 @@ function GenericMDPanel() {
                 />
               </label>
 
-              {file && (
-                <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  {file.name}
-                </div>
-              )}
-
-              {previewAtomCount != null && (
-                <div className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-3 py-1.5 text-xs font-medium text-violet-700">
-                  <span className="h-2 w-2 rounded-full bg-violet-500" />
-                  {previewAtomCount} atoms loaded
-                </div>
-              )}
+              <button
+                onClick={handleUseExampleMD}
+                className="rounded-xl border border-violet-200 bg-violet-50 px-5 py-3 text-base font-medium text-violet-700 shadow-sm transition hover:bg-violet-100"
+              >
+                Use example structure
+              </button>
             </div>
+
+            {file && (
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                {file.name}
+              </div>
+            )}
+
+            {!file && previewCif === EXAMPLE_CIF && (
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-violet-100 px-3 py-1.5 text-xs font-medium text-violet-700">
+                <span className="h-2 w-2 rounded-full bg-violet-500" />
+                Example structure loaded
+              </div>
+            )}
+
+            {previewAtomCount != null && (
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-violet-100 px-3 py-1.5 text-xs font-medium text-violet-700">
+                <span className="h-2 w-2 rounded-full bg-violet-500" />
+                {previewAtomCount} atoms loaded
+              </div>
+            )}
 
             <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <InputCard label="ML potential">
@@ -682,7 +714,7 @@ function GenericMDPanel() {
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <button
                 onClick={runMD}
-                disabled={!file || loading}
+                disabled={(!file && !previewCif) || loading}
                 className="rounded-xl bg-[linear-gradient(135deg,#0f172a_0%,#111827_100%)] px-5 py-3 text-base font-semibold text-white shadow-[0_12px_30px_rgba(15,23,42,0.25)] transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading ? "Running MD..." : "Run MD"}
