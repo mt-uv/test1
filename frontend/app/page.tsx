@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import CrystalViewer from "./components/CrystalViewer";
 
 const API_BASE =
@@ -80,9 +80,131 @@ O22 O 0.888889 0.666667 0.598304
 O23 O 0.888889 0.666667 0.901696
 O24 O 0.777778 0.833333 0.098304`;
 
+function cn(...parts: Array<string | false | null | undefined>) {
+  return parts.filter(Boolean).join(" ");
+}
+
+function IconSpark() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none">
+      <path
+        d="M12 2L14.3 9.7L22 12L14.3 14.3L12 22L9.7 14.3L2 12L9.7 9.7L12 2Z"
+        className="fill-current"
+      />
+    </svg>
+  );
+}
+
+function IconUpload() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+      <path
+        d="M12 16V4M12 4L7.5 8.5M12 4L16.5 8.5M5 19H19"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconStructure() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+      <circle cx="6" cy="12" r="2.3" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="18" cy="7" r="2.3" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="18" cy="17" r="2.3" stroke="currentColor" strokeWidth="1.7" />
+      <path
+        d="M8 11L16 8M8 13L16 16"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function IconPlay() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none">
+      <path
+        d="M8 6.5V17.5L17 12L8 6.5Z"
+        className="fill-current"
+      />
+    </svg>
+  );
+}
+
+function IconStop() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none">
+      <rect x="7" y="7" width="10" height="10" rx="2" className="fill-current" />
+    </svg>
+  );
+}
+
+function IconPulse() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none">
+      <path
+        d="M3 12H7L9.3 7L13.2 17L15.6 12H21"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconRelax() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none">
+      <path
+        d="M7 17C10 17 12 14.5 12 12C12 9.5 14 7 17 7"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M14.5 5H17.5V8"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconExplorer() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none">
+      <path
+        d="M14.5 9.5L9.5 14.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M10.6 8.3C12.8 6.1 16.4 6.1 18.6 8.3C20.8 10.5 20.8 14.1 18.6 16.3C16.4 18.5 12.8 18.5 10.6 16.3C8.4 14.1 8.4 10.5 10.6 8.3Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M6 18L8.5 15.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function Spinner({ label }: { label: string }) {
   return (
-    <div className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-medium text-violet-700 shadow-sm">
+    <div className="inline-flex items-center gap-2 rounded-full border border-violet-200/80 bg-violet-50/90 px-3.5 py-2 text-xs font-semibold text-violet-700 shadow-sm backdrop-blur">
       <span className="relative flex h-3.5 w-3.5">
         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-400 opacity-40" />
         <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-violet-500" />
@@ -92,24 +214,104 @@ function Spinner({ label }: { label: string }) {
   );
 }
 
+function StatusBadge({
+  tone = "default",
+  children,
+  live = false,
+}: {
+  tone?: "default" | "violet" | "emerald" | "rose" | "slate";
+  children: React.ReactNode;
+  live?: boolean;
+}) {
+  const styles = {
+    default: "border-slate-200 bg-white text-slate-700",
+    violet: "border-violet-200 bg-violet-50 text-violet-700",
+    emerald: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    rose: "border-rose-200 bg-rose-50 text-rose-700",
+    slate: "border-slate-200 bg-slate-100 text-slate-700",
+  };
+
+  const dot = {
+    default: "bg-slate-400",
+    violet: "bg-violet-500",
+    emerald: "bg-emerald-500",
+    rose: "bg-rose-500",
+    slate: "bg-slate-500",
+  };
+
+  return (
+    <div
+      className={cn(
+        "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold shadow-sm",
+        styles[tone]
+      )}
+    >
+      <span
+        className={cn(
+          "h-2.5 w-2.5 rounded-full",
+          dot[tone],
+          live && "animate-pulse"
+        )}
+      />
+      {children}
+    </div>
+  );
+}
+
+function StatChip({
+  label,
+  value,
+  accent = "violet",
+}: {
+  label: string;
+  value: React.ReactNode;
+  accent?: "violet" | "blue" | "emerald";
+}) {
+  const accents = {
+    violet:
+      "from-violet-500/10 to-fuchsia-500/10 border-violet-200/70 text-violet-700",
+    blue: "from-sky-500/10 to-indigo-500/10 border-sky-200/70 text-sky-700",
+    emerald:
+      "from-emerald-500/10 to-teal-500/10 border-emerald-200/70 text-emerald-700",
+  };
+
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border bg-gradient-to-br px-4 py-3 shadow-sm",
+        accents[accent]
+      )}
+    >
+      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        {label}
+      </div>
+      <div className="mt-1 text-base font-semibold text-slate-900">{value}</div>
+    </div>
+  );
+}
+
 function TabButton({
   active,
   onClick,
+  icon,
   children,
 }: {
   active: boolean;
   onClick: () => void;
+  icon: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <button
       onClick={onClick}
-      className={
+      className={cn(
+        "group inline-flex items-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-semibold transition-all duration-200 md:text-base",
         active
-          ? "rounded-2xl bg-[linear-gradient(135deg,#7c3aed_0%,#8b5cf6_45%,#6366f1_100%)] px-6 py-3 text-base font-semibold text-white shadow-[0_12px_30px_rgba(124,58,237,0.28)] transition hover:scale-[1.01] md:text-lg"
-          : "rounded-2xl border border-slate-200 bg-white/70 px-6 py-3 text-base font-medium text-slate-500 shadow-sm backdrop-blur transition hover:border-slate-300 hover:bg-white md:text-lg"
-      }
+          ? "bg-[linear-gradient(135deg,#7c3aed_0%,#8b5cf6_45%,#6366f1_100%)] text-white shadow-[0_14px_36px_rgba(124,58,237,0.30)]"
+          : "border border-slate-200/80 bg-white/75 text-slate-600 shadow-sm backdrop-blur hover:-translate-y-[1px] hover:border-slate-300 hover:bg-white"
+      )}
     >
+      <span className={cn(active ? "text-white" : "text-slate-500")}>{icon}</span>
       {children}
     </button>
   );
@@ -117,16 +319,21 @@ function TabButton({
 
 function InputCard({
   label,
+  hint,
   children,
 }: {
   label: string;
+  hint?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[20px] border border-slate-200/80 bg-white/85 p-4 shadow-sm">
-      <label className="mb-2 block text-xs font-medium text-slate-500 md:text-sm">
-        {label}
-      </label>
+    <div className="rounded-[22px] border border-slate-200/80 bg-white/90 p-4 shadow-sm transition hover:shadow-md">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <label className="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+          {label}
+        </label>
+        {hint && <span className="text-[11px] text-slate-400">{hint}</span>}
+      </div>
       {children}
     </div>
   );
@@ -134,24 +341,101 @@ function InputCard({
 
 function SectionCard({
   title,
+  subtitle,
   children,
+  rightSlot,
   className = "",
 }: {
   title: string;
+  subtitle?: string;
   children: React.ReactNode;
+  rightSlot?: React.ReactNode;
   className?: string;
 }) {
   return (
     <div
-      className={`overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/85 shadow-sm ${className}`}
+      className={cn(
+        "overflow-hidden rounded-[30px] border border-white/70 bg-white/80 shadow-[0_12px_40px_rgba(15,23,42,0.06)] backdrop-blur-xl",
+        className
+      )}
     >
-      <div className="border-b border-slate-200/80 px-7 py-5">
-        <h3 className="text-2xl font-semibold tracking-tight text-slate-950 md:text-3xl">
-          {title}
-        </h3>
+      <div className="border-b border-slate-200/70 px-6 py-5 md:px-7">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h3 className="text-2xl font-semibold tracking-tight text-slate-950 md:text-3xl">
+              {title}
+            </h3>
+            {subtitle && (
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 md:text-base">
+                {subtitle}
+              </p>
+            )}
+          </div>
+          {rightSlot && <div className="shrink-0">{rightSlot}</div>}
+        </div>
       </div>
-      <div className="p-7">{children}</div>
+      <div className="p-6 md:p-7">{children}</div>
     </div>
+  );
+}
+
+function EmptyState({
+  title,
+  text,
+  icon,
+}: {
+  title: string;
+  text: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-[26px] border border-dashed border-slate-200 bg-[linear-gradient(180deg,#f8fafc_0%,#f8fafc_100%)] px-6 py-14 text-center shadow-inner">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-violet-600 shadow-sm">
+        {icon || <IconStructure />}
+      </div>
+      <h4 className="mt-4 text-lg font-semibold text-slate-900">{title}</h4>
+      <p className="mx-auto mt-2 max-w-md text-sm leading-7 text-slate-500">
+        {text}
+      </p>
+    </div>
+  );
+}
+
+function UploadCard({
+  title,
+  subtitle,
+  onFile,
+  accept,
+  buttonLabel,
+}: {
+  title: string;
+  subtitle: string;
+  onFile: (f: File | null) => void;
+  accept: string;
+  buttonLabel: string;
+}) {
+  return (
+    <label className="group flex cursor-pointer flex-col rounded-[24px] border border-dashed border-slate-300 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,252,0.95)_100%)] p-5 shadow-sm transition hover:-translate-y-[1px] hover:border-violet-300 hover:shadow-md">
+      <input
+        type="file"
+        accept={accept}
+        className="hidden"
+        onChange={(e) => onFile(e.target.files?.[0] || null)}
+      />
+      <div className="flex items-start gap-4">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-50 text-violet-700 transition group-hover:bg-violet-100">
+          <IconUpload />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-base font-semibold text-slate-900">{title}</div>
+          <div className="mt-1 text-sm leading-6 text-slate-500">{subtitle}</div>
+          <div className="mt-4 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition group-hover:translate-y-[-1px]">
+            <IconUpload />
+            {buttonLabel}
+          </div>
+        </div>
+      </div>
+    </label>
   );
 }
 
@@ -164,22 +448,25 @@ function ViewerPanel({
 }) {
   if (!cifText) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-6 py-12 text-center text-slate-500">
-        {emptyText}
-      </div>
+      <EmptyState
+        title="No structure to display"
+        text={emptyText}
+        icon={<IconStructure />}
+      />
     );
   }
 
   return (
     <>
-      <div className="rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm">
-        <div className="min-h-[520px]">
+      <div className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-[radial-gradient(circle_at_top,rgba(124,58,237,0.12),transparent_55%)]" />
+        <div className="min-h-[520px] rounded-[20px] bg-white">
           <CrystalViewer cifText={cifText} />
         </div>
       </div>
 
-      <details className="mt-5 rounded-2xl border border-slate-200 bg-slate-50">
-        <summary className="cursor-pointer px-5 py-4 text-sm font-medium text-slate-700">
+      <details className="mt-5 overflow-hidden rounded-[22px] border border-slate-200 bg-slate-50/90">
+        <summary className="cursor-pointer px-5 py-4 text-sm font-semibold text-slate-700 transition hover:bg-white">
           Show raw CIF
         </summary>
         <div className="px-5 pb-5">
@@ -194,6 +481,37 @@ function ViewerPanel({
   );
 }
 
+function LiveLog({
+  logs,
+  title = "Live Output",
+}: {
+  logs: string[];
+  title?: string;
+}) {
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [logs]);
+
+  return (
+    <div className="overflow-hidden rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] shadow-inner">
+      <div className="flex items-center justify-between border-b border-slate-200/80 px-5 py-4">
+        <div className="text-sm font-semibold text-slate-800">{title}</div>
+        <StatusBadge tone="slate">Streaming console</StatusBadge>
+      </div>
+      <div className="h-[36rem] overflow-auto p-5 font-mono text-[13px] leading-7 text-slate-700">
+        {logs.map((line, i) => (
+          <div key={i} className="break-words">
+            {line}
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+    </div>
+  );
+}
+
 function AllAtomMSDChart({
   timePs,
   msdBySpecies,
@@ -204,11 +522,11 @@ function AllAtomMSDChart({
   live: boolean;
 }) {
   const width = 1200;
-  const height = 480;
-  const padL = 56;
-  const padR = 18;
-  const padT = 18;
-  const padB = 42;
+  const height = 500;
+  const padL = 58;
+  const padR = 20;
+  const padT = 22;
+  const padB = 48;
 
   const species = Object.keys(msdBySpecies);
 
@@ -246,155 +564,193 @@ function AllAtomMSDChart({
   const yTicks = 5;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="text-sm font-medium text-slate-800">
-          Live species-resolved MSD vs time
+    <div className="overflow-hidden rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#fafaff_100%)] shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 px-5 py-4">
+        <div>
+          <div className="text-sm font-semibold text-slate-900">
+            Species-resolved MSD vs time
+          </div>
+          <div className="mt-1 text-xs text-slate-500">
+            Streaming mean-squared displacement during NVT MD
+          </div>
         </div>
-        <div className="text-xs text-slate-500">
-          {live ? "Streaming..." : "Complete"}
-        </div>
+        <StatusBadge tone={live ? "violet" : "emerald"} live={live}>
+          {live ? "Streaming live" : "Run complete"}
+        </StatusBadge>
       </div>
 
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full">
-        {Array.from({ length: xTicks + 1 }).map((_, i) => {
-          const val = (maxX * i) / xTicks;
-          const x = xScale(val);
-          return (
-            <g key={`x-${i}`}>
-              <line
-                x1={x}
-                y1={padT}
-                x2={x}
-                y2={height - padB}
-                stroke="rgba(148,163,184,0.18)"
-                strokeWidth="1"
-              />
-              <text
-                x={x}
-                y={height - padB + 18}
-                textAnchor="middle"
-                fontSize="11"
-                fill="#64748b"
-              >
-                {val.toFixed(2)}
-              </text>
-            </g>
-          );
-        })}
+      <div className="p-4">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
+          <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full">
+            <defs>
+              <linearGradient id="chartGlow" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="rgba(139,92,246,0.12)" />
+                <stop offset="100%" stopColor="rgba(139,92,246,0)" />
+              </linearGradient>
+            </defs>
 
-        {Array.from({ length: yTicks + 1 }).map((_, i) => {
-          const val = (maxY * i) / yTicks;
-          const y = yScale(val);
-          return (
-            <g key={`y-${i}`}>
-              <line
-                x1={padL}
-                y1={y}
-                x2={width - padR}
-                y2={y}
-                stroke="rgba(148,163,184,0.18)"
-                strokeWidth="1"
-              />
-              <text
-                x={padL - 8}
-                y={y + 4}
-                textAnchor="end"
-                fontSize="11"
-                fill="#64748b"
-              >
-                {val.toFixed(2)}
-              </text>
-            </g>
-          );
-        })}
+            <rect
+              x={padL}
+              y={padT}
+              width={width - padL - padR}
+              height={height - padT - padB}
+              fill="url(#chartGlow)"
+              rx="16"
+            />
 
-        <line
-          x1={padL}
-          y1={padT}
-          x2={padL}
-          y2={height - padB}
-          stroke="#94a3b8"
-          strokeWidth="1.5"
-        />
-        <line
-          x1={padL}
-          y1={height - padB}
-          x2={width - padR}
-          y2={height - padB}
-          stroke="#94a3b8"
-          strokeWidth="1.5"
-        />
-
-        {species.map((sp, idx) => {
-          const ys = msdBySpecies[sp].slice(0, n);
-          const path =
-            ys.length > 0
-              ? ys
-                  .map(
-                    (y, i) =>
-                      `${i === 0 ? "M" : "L"} ${xScale(xs[i]).toFixed(2)} ${yScale(y).toFixed(2)}`
-                  )
-                  .join(" ")
-              : "";
-
-          const lastX = xs.length ? xScale(xs[xs.length - 1]) : xScale(0);
-          const lastY = ys.length ? yScale(ys[ys.length - 1]) : yScale(0);
-          const color = palette[idx % palette.length];
-
-          return (
-            <g key={sp}>
-              {ys.length > 0 && (
-                <>
-                  <path d={path} fill="none" stroke={color} strokeWidth="2.5" />
-                  <circle
-                    cx={lastX}
-                    cy={lastY}
-                    r={live ? 5 : 4}
-                    fill={color}
-                    className={live ? "animate-pulse" : ""}
+            {Array.from({ length: xTicks + 1 }).map((_, i) => {
+              const val = (maxX * i) / xTicks;
+              const x = xScale(val);
+              return (
+                <g key={`x-${i}`}>
+                  <line
+                    x1={x}
+                    y1={padT}
+                    x2={x}
+                    y2={height - padB}
+                    stroke="rgba(148,163,184,0.18)"
+                    strokeWidth="1"
                   />
-                </>
-              )}
-            </g>
-          );
-        })}
+                  <text
+                    x={x}
+                    y={height - padB + 20}
+                    textAnchor="middle"
+                    fontSize="11"
+                    fill="#64748b"
+                  >
+                    {val.toFixed(2)}
+                  </text>
+                </g>
+              );
+            })}
 
-        <text
-          x={(padL + width - padR) / 2}
-          y={height - 8}
-          textAnchor="middle"
-          fontSize="12"
-          fill="#475569"
-        >
-          Time (ps)
-        </text>
+            {Array.from({ length: yTicks + 1 }).map((_, i) => {
+              const val = (maxY * i) / yTicks;
+              const y = yScale(val);
+              return (
+                <g key={`y-${i}`}>
+                  <line
+                    x1={padL}
+                    y1={y}
+                    x2={width - padR}
+                    y2={y}
+                    stroke="rgba(148,163,184,0.18)"
+                    strokeWidth="1"
+                  />
+                  <text
+                    x={padL - 8}
+                    y={y + 4}
+                    textAnchor="end"
+                    fontSize="11"
+                    fill="#64748b"
+                  >
+                    {val.toFixed(2)}
+                  </text>
+                </g>
+              );
+            })}
 
-        <text
-          x="16"
-          y={(padT + height - padB) / 2}
-          transform={`rotate(-90 16 ${(padT + height - padB) / 2})`}
-          textAnchor="middle"
-          fontSize="12"
-          fill="#475569"
-        >
-          MSD (Å²)
-        </text>
-      </svg>
+            <line
+              x1={padL}
+              y1={padT}
+              x2={padL}
+              y2={height - padB}
+              stroke="#94a3b8"
+              strokeWidth="1.5"
+            />
+            <line
+              x1={padL}
+              y1={height - padB}
+              x2={width - padR}
+              y2={height - padB}
+              stroke="#94a3b8"
+              strokeWidth="1.5"
+            />
 
-      <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-600">
-        {species.map((sp, idx) => {
-          const color = palette[idx % palette.length];
-          return (
-            <div key={sp} className="flex items-center gap-2">
-              <span
-                className="inline-block h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: color }}
-              />
-              <span>{sp}</span>
-            </div>
-          );
-        })}
+            {species.map((sp, idx) => {
+              const ys = msdBySpecies[sp].slice(0, n);
+              const path =
+                ys.length > 0
+                  ? ys
+                      .map(
+                        (y, i) =>
+                          `${i === 0 ? "M" : "L"} ${xScale(xs[i]).toFixed(2)} ${yScale(y).toFixed(2)}`
+                      )
+                      .join(" ")
+                  : "";
+
+              const lastX = xs.length ? xScale(xs[xs.length - 1]) : xScale(0);
+              const lastY = ys.length ? yScale(ys[ys.length - 1]) : yScale(0);
+              const color = palette[idx % palette.length];
+
+              return (
+                <g key={sp}>
+                  {ys.length > 0 && (
+                    <>
+                      <path
+                        d={path}
+                        fill="none"
+                        stroke={color}
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <circle
+                        cx={lastX}
+                        cy={lastY}
+                        r={live ? 5.5 : 4.5}
+                        fill={color}
+                        className={live ? "animate-pulse" : ""}
+                      />
+                    </>
+                  )}
+                </g>
+              );
+            })}
+
+            <text
+              x={(padL + width - padR) / 2}
+              y={height - 10}
+              textAnchor="middle"
+              fontSize="12"
+              fill="#475569"
+            >
+              Time (ps)
+            </text>
+
+            <text
+              x="16"
+              y={(padT + height - padB) / 2}
+              transform={`rotate(-90 16 ${(padT + height - padB) / 2})`}
+              textAnchor="middle"
+              fontSize="12"
+              fill="#475569"
+            >
+              MSD (Å²)
+            </text>
+          </svg>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-600">
+          {species.map((sp, idx) => {
+            const color = palette[idx % palette.length];
+            return (
+              <div
+                key={sp}
+                className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 shadow-sm"
+              >
+                <span
+                  className="inline-block h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: color }}
+                />
+                <span className="font-medium">{sp}</span>
+              </div>
+            );
+          })}
+          {species.length === 0 && (
+            <div className="text-sm text-slate-500">No MSD stream yet.</div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -612,60 +968,98 @@ function GenericMDPanel() {
   const shownCif = finalCif || previewCif;
 
   return (
-    <section className="relative overflow-hidden rounded-[32px] border border-white/60 bg-white/75 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl md:p-10">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(124,58,237,0.09),_transparent_22%),radial-gradient(circle_at_bottom_left,_rgba(59,130,246,0.08),_transparent_22%)]" />
+    <section className="relative overflow-hidden rounded-[36px] border border-white/70 bg-white/75 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl md:p-10">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(124,58,237,0.10),_transparent_22%),radial-gradient(circle_at_bottom_left,_rgba(59,130,246,0.08),_transparent_22%)]" />
 
       <div className="relative">
-        <h2 className="text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
-          Run Generic MD
-        </h2>
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-violet-200/70 bg-violet-50/80 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-violet-700 shadow-sm">
+              <IconPulse />
+              Molecular Dynamics
+            </div>
 
-        <p className="mt-4 max-w-4xl text-lg leading-8 text-slate-600 md:text-xl">
-          Upload any structure, preview it, choose the ML potential, run NVT
-          Langevin MD, and stream live species-resolved MSD.
-        </p>
+            <h2 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
+              Run Generic MD
+            </h2>
 
-        <div className="mt-10 grid grid-cols-1 gap-8 xl:grid-cols-[520px_minmax(0,1fr)]">
-          <SectionCard title="Simulation Setup">
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="inline-flex cursor-pointer items-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-base font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md">
-                Upload structure file
-                <input
-                  type="file"
-                  accept=".cif,.vasp,.poscar,.xyz,.traj"
-                  className="hidden"
-                  onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
-                />
-              </label>
+            <p className="mt-4 max-w-4xl text-lg leading-8 text-slate-600 md:text-xl">
+              Upload any structure, choose the ML potential, run NVT Langevin MD,
+              and watch species-resolved MSD stream live as the simulation evolves.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <StatChip
+              label="Potential"
+              value={potential.toUpperCase()}
+              accent="violet"
+            />
+            <StatChip
+              label="Temperature"
+              value={`${temperatureK} K`}
+              accent="blue"
+            />
+            <StatChip
+              label="Duration"
+              value={`${totalTimePs} ps`}
+              accent="emerald"
+            />
+          </div>
+        </div>
+
+        <div className="mt-10 grid grid-cols-1 gap-8 xl:grid-cols-[540px_minmax(0,1fr)]">
+          <SectionCard
+            title="Simulation Setup"
+            subtitle="Prepare a structure, choose MD settings, and launch a live run."
+            rightSlot={
+              <StatusBadge tone={loading ? "violet" : "slate"} live={loading}>
+                {loading ? "MD active" : "Idle"}
+              </StatusBadge>
+            }
+          >
+            <div className="grid grid-cols-1 gap-4">
+              <UploadCard
+                title="Upload a structure file"
+                subtitle="Supports .cif, .vasp, .poscar, .xyz, and .traj for generic MD."
+                onFile={handleFileChange}
+                accept=".cif,.vasp,.poscar,.xyz,.traj"
+                buttonLabel="Choose file"
+              />
 
               <button
                 onClick={handleUseExampleMD}
-                className="rounded-xl border border-violet-200 bg-violet-50 px-5 py-3 text-base font-medium text-violet-700 shadow-sm transition hover:bg-violet-100"
+                className="flex items-center justify-between rounded-[24px] border border-violet-200 bg-[linear-gradient(180deg,#faf5ff_0%,#f5f3ff_100%)] p-5 text-left shadow-sm transition hover:-translate-y-[1px] hover:bg-violet-50 hover:shadow-md"
               >
-                Use example structure
+                <div>
+                  <div className="text-base font-semibold text-violet-900">
+                    Use example structure
+                  </div>
+                  <div className="mt-1 text-sm leading-6 text-violet-700/80">
+                    Load a ready-to-run demo crystal to test the MD flow.
+                  </div>
+                </div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-violet-700 shadow-sm">
+                  <IconSpark />
+                </div>
               </button>
             </div>
 
-            {file && (
-              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                {file.name}
-              </div>
-            )}
+            <div className="mt-5 flex flex-wrap gap-2">
+              {file && (
+                <StatusBadge tone="emerald">
+                  File loaded: {file.name}
+                </StatusBadge>
+              )}
 
-            {!file && previewCif === EXAMPLE_CIF && (
-              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-violet-100 px-3 py-1.5 text-xs font-medium text-violet-700">
-                <span className="h-2 w-2 rounded-full bg-violet-500" />
-                Example structure loaded
-              </div>
-            )}
+              {!file && previewCif === EXAMPLE_CIF && (
+                <StatusBadge tone="violet">Example structure loaded</StatusBadge>
+              )}
 
-            {previewAtomCount != null && (
-              <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-violet-100 px-3 py-1.5 text-xs font-medium text-violet-700">
-                <span className="h-2 w-2 rounded-full bg-violet-500" />
-                {previewAtomCount} atoms loaded
-              </div>
-            )}
+              {previewAtomCount != null && (
+                <StatusBadge tone="violet">{previewAtomCount} atoms</StatusBadge>
+              )}
+            </div>
 
             <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <InputCard label="ML potential">
@@ -681,7 +1075,7 @@ function GenericMDPanel() {
                 </select>
               </InputCard>
 
-              <InputCard label="Temperature (K)">
+              <InputCard label="Temperature" hint="Kelvin">
                 <input
                   type="number"
                   value={temperatureK}
@@ -690,7 +1084,7 @@ function GenericMDPanel() {
                 />
               </InputCard>
 
-              <InputCard label="Timestep (fs)">
+              <InputCard label="Timestep" hint="fs">
                 <input
                   type="number"
                   step="0.1"
@@ -700,7 +1094,7 @@ function GenericMDPanel() {
                 />
               </InputCard>
 
-              <InputCard label="Total time (ps)">
+              <InputCard label="Total time" hint="ps">
                 <input
                   type="number"
                   step="0.1"
@@ -711,38 +1105,66 @@ function GenericMDPanel() {
               </InputCard>
             </div>
 
-            <div className="mt-6 flex flex-wrap items-center gap-3">
+            <div className="mt-7 flex flex-wrap items-center gap-3">
               <button
                 onClick={runMD}
                 disabled={(!file && !previewCif) || loading}
-                className="rounded-xl bg-[linear-gradient(135deg,#0f172a_0%,#111827_100%)] px-5 py-3 text-base font-semibold text-white shadow-[0_12px_30px_rgba(15,23,42,0.25)] transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-[linear-gradient(135deg,#0f172a_0%,#111827_100%)] px-5 py-3 text-base font-semibold text-white shadow-[0_14px_34px_rgba(15,23,42,0.25)] transition hover:-translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-50"
               >
+                <IconPlay />
                 {loading ? "Running MD..." : "Run MD"}
               </button>
 
               <button
                 onClick={stopMD}
                 disabled={!loading || !sessionId}
-                className="rounded-xl border border-rose-200 bg-rose-50 px-5 py-3 text-base font-medium text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-5 py-3 text-base font-semibold text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
+                <IconStop />
                 Stop MD
               </button>
 
               {loading && <Spinner label="MD in progress..." />}
             </div>
 
-            <div className="mt-5 rounded-[20px] border border-slate-200 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] p-4 text-sm text-slate-700 shadow-inner">
-              {stage}
+            <div className="mt-6 overflow-hidden rounded-[22px] border border-slate-200 bg-[linear-gradient(180deg,#fcfcff_0%,#f5f7fb_100%)] shadow-inner">
+              <div className="flex items-center justify-between border-b border-slate-200/80 px-4 py-3">
+                <div className="text-sm font-semibold text-slate-800">
+                  Run status
+                </div>
+                <StatusBadge tone={loading ? "violet" : "slate"} live={loading}>
+                  {loading ? "Streaming events" : "Waiting"}
+                </StatusBadge>
+              </div>
+              <div className="px-4 py-4 text-sm leading-7 text-slate-700">
+                {stage}
+              </div>
             </div>
           </SectionCard>
 
-          <SectionCard title="Structure Preview">
-            <ViewerPanel cifText={shownCif} emptyText="No preview yet." />
+          <SectionCard
+            title="Structure Preview"
+            subtitle="Inspect the input or final structure directly in the viewer."
+            rightSlot={
+              shownCif ? (
+                <StatusBadge tone="emerald">
+                  {finalCif ? "Final structure" : "Initial structure"}
+                </StatusBadge>
+              ) : undefined
+            }
+          >
+            <ViewerPanel
+              cifText={shownCif}
+              emptyText="Upload or load a structure to see it here."
+            />
           </SectionCard>
         </div>
 
         <div className="mt-8">
-          <SectionCard title="Live MSD Output">
+          <SectionCard
+            title="Live MSD Output"
+            subtitle="Track species-wise displacement over time while the MD simulation runs."
+          >
             <AllAtomMSDChart
               timePs={timePs}
               msdBySpecies={msdBySpecies}
@@ -753,14 +1175,14 @@ function GenericMDPanel() {
               <div className="mt-6 flex flex-wrap gap-3">
                 <a
                   href={`${API_BASE}/download-upload-md-cif/${resultId}`}
-                  className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-base font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md"
+                  className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-base font-semibold text-slate-700 shadow-sm transition hover:-translate-y-[1px] hover:border-violet-300 hover:shadow-md"
                 >
                   Download final CIF
                 </a>
 
                 <a
                   href={`${API_BASE}/download-upload-md-traj/${resultId}`}
-                  className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-base font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md"
+                  className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-base font-semibold text-slate-700 shadow-sm transition hover:-translate-y-[1px] hover:border-violet-300 hover:shadow-md"
                 >
                   Download MD trajectory
                 </a>
@@ -788,6 +1210,15 @@ export default function Page() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [resultId, setResultId] = useState<string | null>(null);
   const [finalEnergy, setFinalEnergy] = useState<number | null>(null);
+
+  const relaxSummary = useMemo(() => {
+    return {
+      structure: preview?.filename || file?.name || "None",
+      atoms: preview?.n_atoms ?? "—",
+      optimizer,
+      potential: potential.toUpperCase(),
+    };
+  }, [preview, file, optimizer, potential]);
 
   async function handlePreview() {
     if (!file) return;
@@ -925,27 +1356,64 @@ export default function Page() {
   }
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(124,58,237,0.10),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(59,130,246,0.10),_transparent_24%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] text-slate-900">
-      <div className="mx-auto max-w-7xl px-6 py-8 md:px-10 md:py-12">
+    <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_48%,#f8fafc_100%)] text-slate-900">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute left-[-120px] top-[-80px] h-[360px] w-[360px] rounded-full bg-violet-300/20 blur-3xl" />
+        <div className="absolute right-[-80px] top-[120px] h-[300px] w-[300px] rounded-full bg-sky-300/20 blur-3xl" />
+        <div className="absolute bottom-[-120px] left-[20%] h-[320px] w-[320px] rounded-full bg-fuchsia-200/20 blur-3xl" />
+      </div>
+
+      <div className="relative mx-auto max-w-7xl px-6 py-8 md:px-10 md:py-12">
         <div className="mb-10">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/70 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-slate-500 shadow-sm backdrop-blur">
-            <span className="h-2 w-2 rounded-full bg-violet-500 shadow-[0_0_12px_rgba(139,92,246,0.9)]" />
-            Materials ML
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/75 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 shadow-sm backdrop-blur">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-100 text-violet-700">
+              <IconSpark />
+            </span>
+            Materials ML Studio
           </div>
 
-          <h1 className="mt-5 max-w-4xl text-5xl font-semibold tracking-tight text-slate-950 md:text-6xl">
-            Molecular Simulations with Machine Learning Potentials
-          </h1>
+          <div className="mt-6 grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
+            <div>
+              <h1 className="max-w-5xl text-5xl font-semibold tracking-tight text-slate-950 md:text-6xl">
+                Molecular Simulations with Machine Learning Potentials
+              </h1>
 
-          <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600 md:text-2xl md:leading-9">
-            Uploaded-structure relaxation and NVT MD in one interface.
-          </p>
+              <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600 md:text-2xl md:leading-9">
+                A cleaner workflow for structure relaxation, live MD, and crystal
+                inspection — all in one interface.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 self-start">
+              <StatChip
+                label="Tabs"
+                value="Explorer / Relax / MD"
+                accent="violet"
+              />
+              <StatChip
+                label="Viewer"
+                value="Interactive crystal"
+                accent="blue"
+              />
+              <StatChip
+                label="Streaming"
+                value="Logs + MSD"
+                accent="emerald"
+              />
+              <StatChip
+                label="Export"
+                value="CIF + trajectory"
+                accent="violet"
+              />
+            </div>
+          </div>
         </div>
 
         <div className="mb-8 flex flex-wrap gap-3">
           <TabButton
             active={activeTab === "explorer"}
             onClick={() => setActiveTab("explorer")}
+            icon={<IconExplorer />}
           >
             Cathode Explorer
           </TabButton>
@@ -953,6 +1421,7 @@ export default function Page() {
           <TabButton
             active={activeTab === "relax"}
             onClick={() => setActiveTab("relax")}
+            icon={<IconRelax />}
           >
             Relax Structure
           </TabButton>
@@ -960,21 +1429,36 @@ export default function Page() {
           <TabButton
             active={activeTab === "md"}
             onClick={() => setActiveTab("md")}
+            icon={<IconPulse />}
           >
             Run Generic MD
           </TabButton>
         </div>
 
         {activeTab === "explorer" && (
-          <section className="relative overflow-hidden rounded-[32px] border border-white/60 bg-white/75 p-10 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(124,58,237,0.09),_transparent_22%),radial-gradient(circle_at_bottom_left,_rgba(59,130,246,0.08),_transparent_22%)]" />
+          <section className="relative overflow-hidden rounded-[36px] border border-white/70 bg-white/75 p-8 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl md:p-10">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(124,58,237,0.10),_transparent_22%),radial-gradient(circle_at_bottom_left,_rgba(59,130,246,0.08),_transparent_22%)]" />
             <div className="relative">
-              <h2 className="text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-violet-700 shadow-sm">
+                <IconExplorer />
+                Explorer
+              </div>
+              <h2 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
                 Cathode Explorer
               </h2>
               <p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600 md:text-xl">
-                This tab is ready for your explorer interface.
+                This area is ready for a richer explorer experience — filters,
+                composition search, phase metadata, and structure cards would fit
+                beautifully here.
               </p>
+
+              <div className="mt-8">
+                <EmptyState
+                  title="Explorer UI placeholder"
+                  text="You can turn this into a searchable materials gallery with crystal previews, chemistry filters, and quick property stats."
+                  icon={<IconExplorer />}
+                />
+              </div>
             </div>
           </section>
         )}
@@ -982,53 +1466,111 @@ export default function Page() {
         {activeTab === "md" && <GenericMDPanel />}
 
         {activeTab === "relax" && (
-          <section className="relative overflow-hidden rounded-[32px] border border-white/60 bg-white/75 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl md:p-10">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(124,58,237,0.09),_transparent_22%),radial-gradient(circle_at_bottom_left,_rgba(59,130,246,0.08),_transparent_22%)]" />
+          <section className="relative overflow-hidden rounded-[36px] border border-white/70 bg-white/75 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl md:p-10">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(124,58,237,0.10),_transparent_22%),radial-gradient(circle_at_bottom_left,_rgba(59,130,246,0.08),_transparent_22%)]" />
 
             <div className="relative">
-              <h2 className="text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
-                Relax Structure
-              </h2>
+              <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-violet-200/70 bg-violet-50/80 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-violet-700 shadow-sm">
+                    <IconRelax />
+                    Structure Optimization
+                  </div>
 
-              <p className="mt-4 max-w-4xl text-lg leading-8 text-slate-600 md:text-xl">
-                Upload a structure, preview it, choose potential and optimizer,
-                then stream the relaxation output live.
-              </p>
+                  <h2 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
+                    Relax Structure
+                  </h2>
 
-              <div className="mt-10 grid grid-cols-1 gap-8 xl:grid-cols-[520px_minmax(0,1fr)]">
-                <SectionCard title="Relaxation Setup">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <label className="inline-flex cursor-pointer items-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-base font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md">
-                      Upload structure file
-                      <input
-                        type="file"
-                        accept=".cif,.vasp,.poscar"
-                        className="hidden"
-                        onChange={(e) => setFile(e.target.files?.[0] || null)}
-                      />
-                    </label>
+                  <p className="mt-4 max-w-4xl text-lg leading-8 text-slate-600 md:text-xl">
+                    Upload a structure, preview it, choose the potential and
+                    optimizer, then stream the relaxation output in real time.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <StatChip
+                    label="Potential"
+                    value={relaxSummary.potential}
+                    accent="violet"
+                  />
+                  <StatChip
+                    label="Optimizer"
+                    value={relaxSummary.optimizer}
+                    accent="blue"
+                  />
+                  <StatChip
+                    label="Atoms"
+                    value={relaxSummary.atoms}
+                    accent="emerald"
+                  />
+                  <StatChip
+                    label="Structure"
+                    value={
+                      <span className="block max-w-[120px] truncate">
+                        {relaxSummary.structure}
+                      </span>
+                    }
+                    accent="violet"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-10 grid grid-cols-1 gap-8 xl:grid-cols-[540px_minmax(0,1fr)]">
+                <SectionCard
+                  title="Relaxation Setup"
+                  subtitle="Load a structure, configure the optimizer, and launch a streamed relaxation run."
+                  rightSlot={
+                    <StatusBadge tone={running ? "violet" : "slate"} live={running}>
+                      {running ? "Relaxation active" : "Idle"}
+                    </StatusBadge>
+                  }
+                >
+                  <div className="grid grid-cols-1 gap-4">
+                    <UploadCard
+                      title="Upload a structure file"
+                      subtitle="Supports .cif, .vasp, and .poscar for relaxation."
+                      onFile={setFile}
+                      accept=".cif,.vasp,.poscar"
+                      buttonLabel="Choose file"
+                    />
 
                     <button
                       onClick={handleUseExample}
-                      className="rounded-xl border border-violet-200 bg-violet-50 px-5 py-3 text-base font-medium text-violet-700 shadow-sm transition hover:bg-violet-100"
+                      className="flex items-center justify-between rounded-[24px] border border-violet-200 bg-[linear-gradient(180deg,#faf5ff_0%,#f5f3ff_100%)] p-5 text-left shadow-sm transition hover:-translate-y-[1px] hover:bg-violet-50 hover:shadow-md"
                     >
-                      Use example structure
+                      <div>
+                        <div className="text-base font-semibold text-violet-900">
+                          Use example structure
+                        </div>
+                        <div className="mt-1 text-sm leading-6 text-violet-700/80">
+                          Load a prefilled CIF and jump directly into testing.
+                        </div>
+                      </div>
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-violet-700 shadow-sm">
+                        <IconSpark />
+                      </div>
                     </button>
                   </div>
 
-                  {file && (
-                    <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600">
-                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                      {file.name}
-                    </div>
-                  )}
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {file && (
+                      <StatusBadge tone="emerald">
+                        Selected file: {file.name}
+                      </StatusBadge>
+                    )}
 
-                  {!file && preview?.filename === "example.cif" && (
-                    <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-violet-100 px-3 py-1.5 text-xs font-medium text-violet-700">
-                      <span className="h-2 w-2 rounded-full bg-violet-500" />
-                      Example structure loaded
-                    </div>
-                  )}
+                    {!file && preview?.filename === "example.cif" && (
+                      <StatusBadge tone="violet">
+                        Example structure loaded
+                      </StatusBadge>
+                    )}
+
+                    {preview?.n_atoms != null && (
+                      <StatusBadge tone="violet">
+                        {preview.n_atoms} atoms
+                      </StatusBadge>
+                    )}
+                  </div>
 
                   <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <InputCard label="ML potential">
@@ -1054,7 +1596,7 @@ export default function Page() {
                       </select>
                     </InputCard>
 
-                    <InputCard label="Maximum force (eV/A)">
+                    <InputCard label="Maximum force" hint="eV/A">
                       <input
                         value={fmax}
                         onChange={(e) => setFmax(e.target.value)}
@@ -1071,11 +1613,11 @@ export default function Page() {
                     </InputCard>
                   </div>
 
-                  <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <div className="mt-7 flex flex-wrap items-center gap-3">
                     <button
                       onClick={handlePreview}
                       disabled={!file || previewLoading}
-                      className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-base font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                      className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-base font-semibold text-slate-700 shadow-sm transition hover:-translate-y-[1px] hover:border-violet-300 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {previewLoading ? "Previewing..." : "Preview structure"}
                     </button>
@@ -1083,8 +1625,9 @@ export default function Page() {
                     <button
                       onClick={handleRelax}
                       disabled={running || (!file && !preview?.cif)}
-                      className="rounded-xl bg-[linear-gradient(135deg,#0f172a_0%,#111827_100%)] px-5 py-3 text-base font-semibold text-white shadow-[0_12px_30px_rgba(15,23,42,0.25)] transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-xl bg-[linear-gradient(135deg,#0f172a_0%,#111827_100%)] px-5 py-3 text-base font-semibold text-white shadow-[0_14px_34px_rgba(15,23,42,0.25)] transition hover:-translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-50"
                     >
+                      <IconPlay />
                       {running ? "Running..." : "Run relaxation"}
                     </button>
 
@@ -1093,26 +1636,32 @@ export default function Page() {
                   </div>
                 </SectionCard>
 
-                <SectionCard title="Structure Preview">
+                <SectionCard
+                  title="Structure Preview"
+                  subtitle="Inspect the current structure before or after relaxation."
+                  rightSlot={
+                    preview ? (
+                      <StatusBadge tone="emerald">
+                        {preview.filename}
+                      </StatusBadge>
+                    ) : undefined
+                  }
+                >
                   {!preview ? (
-                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-6 py-12 text-center text-slate-500">
-                      No preview yet.
-                    </div>
+                    <EmptyState
+                      title="No preview yet"
+                      text="Upload a structure or use the example to visualize it here."
+                      icon={<IconStructure />}
+                    />
                   ) : (
                     <>
-                      <div className="mb-5 space-y-2">
-                        <p className="text-base text-slate-700">
-                          <span className="font-semibold text-slate-950">
-                            File:
-                          </span>{" "}
-                          {preview.filename}
-                        </p>
-                        <p className="text-base text-slate-700">
-                          <span className="font-semibold text-slate-950">
-                            Atoms:
-                          </span>{" "}
-                          {preview.n_atoms}
-                        </p>
+                      <div className="mb-5 flex flex-wrap gap-2">
+                        <StatusBadge tone="slate">
+                          File: {preview.filename}
+                        </StatusBadge>
+                        <StatusBadge tone="violet">
+                          Atoms: {preview.n_atoms}
+                        </StatusBadge>
                       </div>
 
                       <ViewerPanel
@@ -1125,33 +1674,31 @@ export default function Page() {
               </div>
 
               <div className="mt-8">
-                <SectionCard title="Relaxation Output">
-                  <div className="h-[36rem] overflow-auto rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] p-5 font-mono text-[13px] leading-7 text-slate-700 shadow-inner">
-                    {logs.map((line, i) => (
-                      <div key={i}>{line}</div>
-                    ))}
-                  </div>
+                <SectionCard
+                  title="Relaxation Output"
+                  subtitle="Live optimization logs and downloadable results."
+                >
+                  <LiveLog logs={logs} title="Relaxation stream" />
 
                   {finalEnergy !== null && (
-                    <p className="mt-6 text-lg text-slate-700">
-                      Final energy:{" "}
-                      <span className="font-semibold text-slate-950">
-                        {finalEnergy.toFixed(6)} eV
-                      </span>
-                    </p>
+                    <div className="mt-6">
+                      <StatusBadge tone="emerald">
+                        Final energy: {finalEnergy.toFixed(6)} eV
+                      </StatusBadge>
+                    </div>
                   )}
 
                   {resultId && (
                     <div className="mt-6 flex flex-wrap gap-3">
                       <a
                         href={`${API_BASE}/download-relaxed-cif/${resultId}`}
-                        className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-base font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md"
+                        className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-base font-semibold text-slate-700 shadow-sm transition hover:-translate-y-[1px] hover:border-violet-300 hover:shadow-md"
                       >
                         Save relaxed CIF
                       </a>
                       <a
                         href={`${API_BASE}/download-relax-traj/${resultId}`}
-                        className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-base font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:shadow-md"
+                        className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-base font-semibold text-slate-700 shadow-sm transition hover:-translate-y-[1px] hover:border-violet-300 hover:shadow-md"
                       >
                         Save trajectory
                       </a>
