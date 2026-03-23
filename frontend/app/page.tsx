@@ -453,10 +453,12 @@ function LiveLog({
   logs: string[];
   title?: string;
 }) {
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    }
   }, [logs]);
 
   return (
@@ -465,13 +467,16 @@ function LiveLog({
         <div className="text-sm font-semibold text-slate-800">{title}</div>
         <StatusBadge tone="slate">Streaming console</StatusBadge>
       </div>
-      <div className="h-[36rem] overflow-auto p-5 font-mono text-[13px] leading-7 text-slate-700">
+
+      <div
+        ref={containerRef}
+        className="h-[36rem] overflow-auto p-5 font-mono text-[13px] leading-7 text-slate-700"
+      >
         {logs.map((line, i) => (
           <div key={i} className="break-words">
             {line}
           </div>
         ))}
-        <div ref={bottomRef} />
       </div>
     </div>
   );
