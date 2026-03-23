@@ -1,17 +1,20 @@
 from __future__ import annotations
 
+import io
 import os
+import random
 import tempfile
 from functools import lru_cache
-from typing import Callable
+from typing import Callable, Dict, List
 
 import numpy as np
 from ase import units
+from ase.build import bulk
 from ase.io import read
 from ase.io.trajectory import Trajectory
 from ase.md.langevin import Langevin
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
-from ase.optimize import LBFGS, BFGS, FIRE
+from ase.optimize import BFGS, FIRE, LBFGS
 from fairchem.core import FAIRChemCalculator
 from fairchem.core.units.mlip_unit import load_predict_unit
 from huggingface_hub import hf_hub_download
@@ -36,6 +39,18 @@ MD_DEFAULT_SAMPLE_EVERY = int(os.getenv("MD_DEFAULT_SAMPLE_EVERY", "10"))
 DEVICE = os.getenv("ML_DEVICE", "cpu")
 SUPPORTED_POTENTIALS = {"uma", "orb"}
 
+# Explorer settings
+TEMPLATE_PATH = os.getenv("TEMPLATE_PATH", "../template/Na12Mn11Zr1O24.cif")
+N_CONFIGS = int(os.getenv("N_CONFIGS", "10"))
+NA_REMOVED_FIXED = int(os.getenv("NA_REMOVED_FIXED", "12"))
+
+MD_TEMP_K = float(os.getenv("EXPLORER_MD_TEMP_K", "800"))
+MD_TIMESTEP_FS = float(os.getenv("EXPLORER_MD_TIMESTEP_FS", "1.0"))
+MD_STEPS = int(os.getenv("EXPLORER_MD_STEPS", "5000"))
+MD_SAMPLE_INTERVAL = int(os.getenv("EXPLORER_MD_SAMPLE_INTERVAL", "1"))
+MD_NA_VACANCY_FRACTION = float(os.getenv("EXPLORER_MD_NA_VACANCY_FRACTION", "0.25"))
+MD_LOG_INTERVAL = int(os.getenv("EXPLORER_MD_LOG_INTERVAL", "100"))
+
 
 # ----------------------------
 # Helpers
@@ -59,11 +74,13 @@ def atoms_to_cif_string(atoms) -> str:
     return str(CifWriter(structure))
 
 
+def cif_string_to_atoms(cif_text: str):
+    if not cif_text or not cif_text.strip():
+        raise ValueError("CIF input is empty")
+    return read(io.StringIO(cif_text), format="cif")
+
+
 def uploaded_file_to_atoms(filename: str, file_bytes: bytes):
-    """
-    Reads uploaded structure file into ASE Atoms.
-    Works for CIF and formats ASE can infer from file extension.
-    """
     suffix = os.path.splitext(filename)[1] or ".tmp"
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
@@ -129,14 +146,11 @@ def default_md_friction(potential: str) -> float:
     return 0.01 if potential == "uma" else 0.02
 
 
-def compute_species_msd(atoms, initial_positions: np.ndarray, species: list[str]) -> dict[str, float]:
-    """
-    Simple MSD relative to initial positions.
-
-    Note:
-    This uses wrapped ASE positions. For long PBC trajectories, unwrapped coordinates
-    are more physically rigorous. This is good for a first live dashboard.
-    """
+def compute_species_msd(
+    atoms,
+    initial_positions: np.ndarray,
+    species: list[str],
+) -> dict[str, float]:
     current_positions = atoms.get_positions()
     displacements = current_positions - initial_positions
     sq_disp = np.sum(displacements ** 2, axis=1)
@@ -154,6 +168,20 @@ def compute_species_msd(atoms, initial_positions: np.ndarray, species: list[str]
     return msd_by_species
 
 
+def md_friction_for_potential(potential: str) -> float:
+    return 0.02 if normalize_potential(potential) == "orb" else 0.01
+
+
+def relax_ase(atoms, calc, fmax=RELAX_FMAX, steps=RELAX_STEPS, label="relaxation") -> float:
+    log(f"[RELAX] Starting {label} (fmax={fmax}, steps={steps})")
+    atoms.calc = calc
+    dyn = LBFGS(atoms, logfile="-")
+    dyn.run(fmax=fmax, steps=steps)
+    energy = float(atoms.get_potential_energy())
+    log(f"[RELAX] Finished {label} | Energy = {energy:.6f} eV")
+    return energy
+
+
 # ----------------------------
 # ML calculators
 # ----------------------------
@@ -161,8 +189,6 @@ def compute_species_msd(atoms, initial_positions: np.ndarray, species: list[str]
 @lru_cache(maxsize=1)
 def get_uma_calc():
     log("[INIT] Loading UMA calculator...")
-
-    # Needed for some torch>=2.6 + UMA checkpoint loads
     add_safe_globals([slice])
 
     checkpoint = hf_hub_download(
@@ -184,12 +210,10 @@ def get_uma_calc():
 @lru_cache(maxsize=1)
 def get_orb_calc():
     log("[INIT] Loading ORB calculator...")
-
     orbff = pretrained.orb_v3_conservative_inf_omat(
         device=DEVICE,
         precision="float32-high",
     )
-
     log("[INIT] ORB calculator ready")
     return ORBCalculator(orbff, device=DEVICE)
 
@@ -210,9 +234,6 @@ def get_calc(potential: str):
 # ----------------------------
 
 def preview_structure(filename: str, file_bytes: bytes) -> dict:
-    """
-    Returns minimal preview payload for uploaded structure.
-    """
     atoms = uploaded_file_to_atoms(filename, file_bytes)
     cif = atoms_to_cif_string(atoms)
 
@@ -224,7 +245,7 @@ def preview_structure(filename: str, file_bytes: bytes) -> dict:
 
 
 # ----------------------------
-# Relaxation
+# Upload relaxation
 # ----------------------------
 
 def run_relaxation_stream(
@@ -235,14 +256,6 @@ def run_relaxation_stream(
     fmax: float = RELAX_FMAX,
     steps: int = RELAX_STEPS,
 ):
-    """
-    Streaming relaxation workflow.
-
-    Yields:
-      meta event
-      progress events for each optimization step
-      result event at the end
-    """
     potential = normalize_potential(potential)
     fmax = validate_positive_float("fmax", fmax)
     steps = validate_positive_int("steps", steps)
@@ -272,11 +285,6 @@ def run_relaxation_stream(
 
     traj = Trajectory(traj_path, "w", atoms)
     dyn = get_optimizer(optimizer, atoms, logfile="-")
-
-    log(
-        f"[RELAX] Starting | potential={potential.upper()} "
-        f"| optimizer={optimizer.upper()} | fmax={fmax} | steps={steps}"
-    )
 
     converged = False
 
@@ -317,11 +325,6 @@ def run_relaxation_stream(
     final_energy = float(atoms.get_potential_energy())
     relaxed_cif = atoms_to_cif_string(atoms)
 
-    log(
-        f"[RELAX] Finished | converged={converged} "
-        f"| final_energy={final_energy:.6f} eV"
-    )
-
     yield {
         "event": "result",
         "filename": filename,
@@ -337,7 +340,7 @@ def run_relaxation_stream(
 
 
 # ----------------------------
-# NVT MD
+# Upload NVT MD
 # ----------------------------
 
 def run_nvt_md_stream(
@@ -351,15 +354,6 @@ def run_nvt_md_stream(
     sample_every: int = MD_DEFAULT_SAMPLE_EVERY,
     cancel_check: Callable[[], bool] | None = None,
 ):
-    """
-    Streaming NVT Langevin MD.
-
-    Yields:
-      meta
-      progress
-      result
-      cancelled
-    """
     potential = normalize_potential(potential)
     temperature_k = validate_positive_float("temperature_k", temperature_k)
     timestep_fs = validate_positive_float("timestep_fs", timestep_fs)
@@ -382,7 +376,6 @@ def run_nvt_md_stream(
     species = sorted(set(atoms.get_chemical_symbols()))
     initial_positions = atoms.get_positions().copy()
 
-    # Initialize velocities
     MaxwellBoltzmannDistribution(atoms, temperature_K=temperature_k)
 
     traj_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".traj")
@@ -396,12 +389,6 @@ def run_nvt_md_stream(
         timestep=timestep_fs * units.fs,
         temperature_K=temperature_k,
         friction=friction,
-    )
-
-    log(
-        f"[MD] Starting | potential={potential.upper()} | T={temperature_k} K "
-        f"| dt={timestep_fs} fs | total={total_time_ps} ps | steps={steps} "
-        f"| friction={friction}"
     )
 
     yield {
@@ -421,7 +408,6 @@ def run_nvt_md_stream(
     try:
         for step in range(1, steps + 1):
             if cancel_check is not None and cancel_check():
-                log(f"[MD] Cancelled by user at step {step}/{steps}")
                 yield {
                     "event": "cancelled",
                     "filename": filename,
@@ -478,11 +464,6 @@ def run_nvt_md_stream(
     final_epot = float(atoms.get_potential_energy())
     final_ekin = float(atoms.get_kinetic_energy())
 
-    log(
-        f"[MD] Finished | potential={potential.upper()} | "
-        f"Epot={final_epot:.6f} eV | Ekin={final_ekin:.6f} eV"
-    )
-
     yield {
         "event": "result",
         "filename": filename,
@@ -499,293 +480,573 @@ def run_nvt_md_stream(
         "final_kinetic_energy": final_ekin,
     }
 
+
 # ----------------------------
 # Explorer / screening helpers
 # ----------------------------
 
-DEMO_CATHODE_CIF = """data_Si2V1
-_symmetry_space_group_name_H-M   'P1'
-_cell_length_a   9.295831
-_cell_length_b   6.197221
-_cell_length_c   10.898132
-_cell_angle_alpha   90.000000
-_cell_angle_beta    90.000000
-_cell_angle_gamma   120.000000
-_cell_volume   543.710732
-_cell_formula_units_Z   1
-loop_
- _atom_site_label
- _atom_site_type_symbol
- _atom_site_fract_x
- _atom_site_fract_y
- _atom_site_fract_z
-Na1 Na 0.111111 0.333333 0.750000
-Na2 Na 0.222222 0.166667 0.250000
-Mn1 Mn 0.000000 0.000000 0.000000
-Mn2 Mn 0.000000 0.000000 0.500000
-O1 O 0.111111 0.333333 0.401696
-O2 O 0.222222 0.166667 0.598304
-O3 O 0.222222 0.166667 0.901696
-O4 O 0.111111 0.333333 0.098304
-Na3 Na 0.111111 0.833333 0.750000
-Na4 Na 0.222222 0.666667 0.250000
-Mn3 Mn 0.000000 0.500000 0.000000
-Mn4 Mn 0.000000 0.500000 0.500000
-O5 O 0.111111 0.833333 0.401696
-O6 O 0.222222 0.666667 0.598304
-O7 O 0.222222 0.666667 0.901696
-O8 O 0.111111 0.833333 0.098304
-Na5 Na 0.444444 0.333333 0.750000
-Na6 Na 0.555556 0.166667 0.250000
-Mn5 Mn 0.333333 0.000000 0.000000
-Si1 Si 0.333333 0.000000 0.500000
-O9 O 0.444444 0.333333 0.401696
-O10 O 0.555556 0.166667 0.598304
-O11 O 0.555556 0.166667 0.901696
-O12 O 0.444444 0.333333 0.098304
-Na7 Na 0.444444 0.833333 0.750000
-Na8 Na 0.555556 0.666667 0.250000
-Mn6 Mn 0.333333 0.500000 0.000000
-Si2 Si 0.333333 0.500000 0.500000
-O13 O 0.444444 0.833333 0.401696
-O14 O 0.555556 0.666667 0.598304
-O15 O 0.555556 0.666667 0.901696
-O16 O 0.444444 0.833333 0.098304
-Na9 Na 0.777778 0.333333 0.750000
-Na10 Na 0.888889 0.166667 0.250000
-Mn7 Mn 0.666667 0.000000 0.000000
-Mn8 Mn 0.666667 0.000000 0.500000
-O17 O 0.777778 0.333333 0.401696
-O18 O 0.888889 0.166667 0.598304
-O19 O 0.888889 0.166667 0.901696
-O20 O 0.777778 0.333333 0.098304
-Na11 Na 0.777778 0.833333 0.750000
-Na12 Na 0.888889 0.666667 0.250000
-Mn9 Mn 0.666667 0.500000 0.000000
-V1 V 0.666667 0.500000 0.500000
-O21 O 0.777778 0.833333 0.401696
-O22 O 0.888889 0.666667 0.598304
-O23 O 0.888889 0.666667 0.901696
-O24 O 0.777778 0.833333 0.098304
-"""
+def compute_voltage(E_sod, E_desod, mu_na, n_removed=NA_REMOVED_FIXED) -> float:
+    return (E_desod - E_sod + n_removed * mu_na) / n_removed
 
 
-def _validate_fraction_map(fractions: dict[str, float], elements: list[str]) -> dict[str, float]:
-    cleaned: dict[str, float] = {}
+@lru_cache(maxsize=None)
+def get_mu_na(potential: str) -> float:
+    potential = normalize_potential(potential)
+    calc = get_calc(potential)
 
-    for el in elements:
-        value = fractions.get(el, 0.0)
-        try:
-            value = float(value)
-        except Exception as exc:
-            raise ValueError(f"Fraction for {el} must be numeric") from exc
-
-        if value < 0 or value > 1:
-            raise ValueError(f"Fraction for {el} must be between 0 and 1")
-
-        cleaned[el] = value
-
-    total = sum(cleaned.values())
-    if abs(total - 1.0) > 1e-6:
-        raise ValueError(f"Fractions must sum to 1. Got {total:.6f}")
-
-    return cleaned
+    na_bulk = bulk("Na", "bcc", a=4.23)
+    na_bulk.calc = calc
+    E = float(na_bulk.get_potential_energy())
+    return E / len(na_bulk)
 
 
-def _dominant_element(elements: list[str], fractions: dict[str, float], fallback: str = "") -> str:
-    if not elements:
-        return fallback
-    return max(elements, key=lambda el: float(fractions.get(el, 0.0)))
-
-
-def _build_configuration_energies(
+def validate_fractions(
     transition_metals: list[str],
     dopants: list[str],
     fractions: dict[str, float],
-) -> list[dict]:
-    configs = []
+):
+    allowed = set(transition_metals) | set(dopants)
 
-    candidates = []
-    for tm in transition_metals:
-        for dop in dopants:
-            score = float(fractions.get(tm, 0.0)) - 0.25 * float(fractions.get(dop, 0.0))
-            candidates.append((tm, dop, score))
+    if not fractions:
+        raise ValueError("fractions dictionary is empty")
 
-    candidates = sorted(candidates, key=lambda x: x[2], reverse=True)
-    if not candidates:
-        candidates = [("Mn", "Zr", 0.0)]
-
-    base_energy = -100.0
-    for idx, (tm, dop, score) in enumerate(candidates[:6]):
-        energy = base_energy - 0.3 * idx - 0.2 * score
-        configs.append(
-            {
-                "name": f"{tm}-{dop} configuration {idx + 1}",
-                "index": idx,
-                "energy": float(energy),
-            }
+    fraction_keys = set(fractions.keys())
+    if fraction_keys != allowed:
+        missing = sorted(allowed - fraction_keys)
+        extra = sorted(fraction_keys - allowed)
+        pieces = []
+        if missing:
+            pieces.append(f"missing keys: {missing}")
+        if extra:
+            pieces.append(f"unexpected keys: {extra}")
+        raise ValueError(
+            "fractions keys must match selected TM + dopants exactly; " + ", ".join(pieces)
         )
 
-    return configs
+    total = 0.0
+    positive_count = 0
 
+    for el, value in fractions.items():
+        try:
+            v = float(value)
+        except Exception:
+            raise ValueError(f"Fraction for {el} is not a valid number")
+
+        if v < 0 or v > 1:
+            raise ValueError(f"Fraction for {el} must be between 0 and 1")
+
+        if v > 0:
+            positive_count += 1
+
+        total += v
+
+    if abs(total - 1.0) > 1e-6:
+        raise ValueError(f"TM + dopant fractions must sum to 1. Current sum = {total:.6f}")
+
+    if positive_count == 0:
+        raise ValueError("At least one fraction must be > 0")
+
+
+def fractions_to_counts(fractions: dict[str, float], total_sites: int):
+    items = list(fractions.items())
+
+    raw = [(el, float(frac) * total_sites) for el, frac in items]
+    base = [(el, int(val)) for el, val in raw]
+
+    counts = {el: c for el, c in base}
+    used = sum(counts.values())
+    remainder = total_sites - used
+
+    remainders = sorted(
+        [(el, raw_val - int(raw_val)) for el, raw_val in raw],
+        key=lambda x: x[1],
+        reverse=True,
+    )
+
+    for i in range(remainder):
+        el = remainders[i][0]
+        counts[el] += 1
+
+    return counts
+
+
+def counts_to_species_list(counts: dict[str, int]):
+    species = []
+    for el, count in counts.items():
+        species.extend([el] * int(count))
+    return species
+
+
+def generate_unique_config_signatures(counts, n_configs=10, max_attempts=2000):
+    base_species = counts_to_species_list(counts)
+
+    if len(base_species) == 0:
+        raise ValueError("No species generated from counts")
+
+    seen = set()
+    signatures = []
+
+    attempts = 0
+    while len(signatures) < n_configs and attempts < max_attempts:
+        attempts += 1
+        trial = base_species.copy()
+        random.shuffle(trial)
+        key = tuple(trial)
+        if key in seen:
+            continue
+        seen.add(key)
+        signatures.append(trial)
+
+    if len(signatures) == 0:
+        raise ValueError("Could not generate any configuration signatures")
+
+    return signatures
+
+
+def apply_signature_to_atoms(template_atoms, tm_indices, signature):
+    atoms = template_atoms.copy()
+    for idx, symbol in zip(tm_indices, signature):
+        atoms[idx].symbol = symbol
+    return atoms
+
+
+def summarize_species(counts, transition_metals, dopants):
+    tm_species = {el: int(counts[el]) for el in transition_metals if counts.get(el, 0) > 0}
+    dopant_species = {el: int(counts[el]) for el in dopants if counts.get(el, 0) > 0}
+
+    chosen_tm = ", ".join(f"{el}{tm_species[el]}" for el in tm_species) if tm_species else "—"
+    chosen_dopant = ", ".join(f"{el}{dopant_species[el]}" for el in dopant_species) if dopant_species else "—"
+
+    return tm_species, dopant_species, chosen_tm, chosen_dopant
+
+
+def create_random_na_vacancies(atoms, vacancy_fraction=MD_NA_VACANCY_FRACTION):
+    atoms_vac = atoms.copy()
+    na_indices = [i for i, a in enumerate(atoms_vac) if a.symbol == "Na"]
+
+    if len(na_indices) == 0:
+        raise ValueError("No Na atoms found for vacancy creation")
+
+    n_remove = max(1, int(round(vacancy_fraction * len(na_indices))))
+    remove_indices = random.sample(na_indices, n_remove)
+
+    for idx in sorted(remove_indices, reverse=True):
+        del atoms_vac[idx]
+
+    return atoms_vac, n_remove
+
+
+# ----------------------------
+# Explorer screening
+# ----------------------------
 
 def run_screening_stream(
-    transition_metals: list[str],
-    dopants: list[str],
-    fractions: dict[str, float],
-    potential: str = "uma",
+    transition_metals,
+    dopants,
+    fractions,
+    potential="uma",
 ):
-    potential = normalize_potential(potential)
-
     if not transition_metals:
-        raise ValueError("At least one transition metal is required")
+        raise ValueError("transition_metals list is empty")
     if not dopants:
-        raise ValueError("At least one dopant is required")
+        raise ValueError("dopants list is empty")
 
-    selected_elements = list(dict.fromkeys([*transition_metals, *dopants]))
-    fractions = _validate_fraction_map(fractions, selected_elements)
+    potential = normalize_potential(potential)
 
     yield {
         "event": "status",
-        "message": "Validating composition...",
-        "progress": 0.05,
+        "message": f"Initializing {potential.upper()} calculator...",
+        "progress": 0.02,
     }
 
-    chosen_tm = _dominant_element(transition_metals, fractions, fallback=transition_metals[0])
-    chosen_dopant = _dominant_element(dopants, fractions, fallback=dopants[0])
+    calc = get_calc(potential)
 
-    yield {
-        "event": "progress",
-        "message": "Generating candidate configurations...",
-        "progress": 0.15,
-        "config_index": 0,
-        "config_total": max(1, len(transition_metals) * len(dopants)),
-    }
-
-    configs = _build_configuration_energies(
+    validate_fractions(
         transition_metals=transition_metals,
         dopants=dopants,
         fractions=fractions,
     )
 
-    config_total = len(configs)
-    for idx, _cfg in enumerate(configs, start=1):
-        progress = 0.15 + 0.45 * (idx / max(config_total, 1))
+    yield {
+        "event": "status",
+        "message": "Fractions validated",
+        "progress": 0.06,
+    }
+
+    if not os.path.exists(TEMPLATE_PATH):
+        raise ValueError(f"Template CIF not found at {TEMPLATE_PATH}")
+
+    template_atoms = read(TEMPLATE_PATH)
+
+    tm_indices = [i for i, a in enumerate(template_atoms) if a.symbol in ["Mn", "Zr"]]
+    if len(tm_indices) != 12:
+        raise ValueError(f"Expected 12 TM sites (Mn/Zr), found {len(tm_indices)}")
+
+    total_tm_sites = len(tm_indices)
+    counts = fractions_to_counts(fractions, total_tm_sites)
+
+    yield {
+        "event": "status",
+        "message": "Generating unique configurations...",
+        "progress": 0.10,
+        "site_counts": counts,
+    }
+
+    signatures = generate_unique_config_signatures(counts, n_configs=N_CONFIGS)
+
+    configuration_energies = []
+    relaxed_candidates = []
+    candidate_cif_doped = []
+
+    total_relax_units = len(signatures) + 1
+    relax_block_start = 0.12
+    relax_block_end = 0.90
+    relax_block_span = relax_block_end - relax_block_start
+
+    for i, signature in enumerate(signatures, start=1):
+        atoms_candidate = apply_signature_to_atoms(template_atoms, tm_indices, signature)
+        cif_doped = atoms_to_cif_string(atoms_candidate)
+
         yield {
-            "event": "config_done",
-            "message": f"Evaluated configuration {idx} / {config_total}",
-            "progress": progress,
-            "config_index": idx,
-            "config_total": config_total,
-            "configuration_energies": configs[:idx],
+            "event": "progress",
+            "message": f"Relaxing configuration {i}/{len(signatures)}...",
+            "stage": "configuration_relaxation",
+            "config_index": i,
+            "config_total": len(signatures),
+            "progress": relax_block_start + relax_block_span * ((i - 1) / total_relax_units),
         }
 
-    selected_cfg = min(configs, key=lambda x: x["energy"])
-    sodiated_energy = float(selected_cfg["energy"])
-    desodiated_energy = float(sodiated_energy + 3.2)
-    voltage = float(abs(desodiated_energy - sodiated_energy) / 1.0)
-    na_removed = 1
-    mu_na = -1.85 if potential == "uma" else -1.72
+        E_sod = relax_ase(
+            atoms_candidate,
+            calc=calc,
+            label=f"sodiated configuration {i}",
+        )
 
-    composition = {el: float(v) for el, v in fractions.items() if float(v) > 0}
+        configuration_energies.append(
+            {
+                "name": f"Configuration {i}",
+                "index": i,
+                "energy": round(float(E_sod), 6),
+            }
+        )
+        relaxed_candidates.append((atoms_candidate.copy(), float(E_sod)))
+        candidate_cif_doped.append(cif_doped)
+
+        yield {
+            "event": "config_done",
+            "message": f"Finished configuration {i}/{len(signatures)}",
+            "stage": "configuration_relaxation",
+            "config_index": i,
+            "config_total": len(signatures),
+            "energy": round(float(E_sod), 6),
+            "configuration_energies": configuration_energies,
+            "progress": relax_block_start + relax_block_span * (i / total_relax_units),
+        }
+
+    selected_idx = min(range(len(relaxed_candidates)), key=lambda k: relaxed_candidates[k][1])
+    selected_config_number = selected_idx + 1
+
+    atoms_sod = relaxed_candidates[selected_idx][0]
+    E_sod = float(relaxed_candidates[selected_idx][1])
+
+    cif_doped = candidate_cif_doped[selected_idx]
+    cif_sodiated_relaxed = atoms_to_cif_string(atoms_sod)
+
+    yield {
+        "event": "status",
+        "message": f"Selected lowest-energy configuration: {selected_config_number}",
+        "selected_configuration": {
+            "name": f"Configuration {selected_config_number}",
+            "index": selected_config_number,
+            "energy": round(float(E_sod), 6),
+        },
+        "progress": 0.92,
+    }
+
+    atoms_des = atoms_sod.copy()
+    na_indices = [i for i, a in enumerate(atoms_des) if a.symbol == "Na"]
+
+    if len(na_indices) < NA_REMOVED_FIXED:
+        raise ValueError(
+            f"Structure has only {len(na_indices)} Na, cannot remove {NA_REMOVED_FIXED}"
+        )
+
+    for idx in sorted(na_indices[:NA_REMOVED_FIXED], reverse=True):
+        del atoms_des[idx]
+
+    yield {
+        "event": "progress",
+        "message": "Relaxing desodiated selected configuration...",
+        "stage": "desodiated_relaxation",
+        "progress": 0.94,
+    }
+
+    E_desod = relax_ase(
+        atoms_des,
+        calc=calc,
+        label="selected desodiated configuration",
+    )
+    cif_desodiated_relaxed = atoms_to_cif_string(atoms_des)
+
+    yield {
+        "event": "status",
+        "message": "Computing Na reference and voltage...",
+        "progress": 0.97,
+    }
+
+    mu_na = float(get_mu_na(potential))
+    V = compute_voltage(E_sod, E_desod, mu_na, n_removed=NA_REMOVED_FIXED)
+
+    nonzero_species = {el: float(frac) for el, frac in fractions.items() if float(frac) > 0}
+    tm_species, dopant_species, chosen_tm, chosen_dopant = summarize_species(
+        counts, transition_metals, dopants
+    )
+
+    result = {
+        "potential": potential,
+        "n_configurations": len(configuration_energies),
+        "configuration_energies": configuration_energies,
+        "selected_configuration": {
+            "name": f"Configuration {selected_config_number}",
+            "index": selected_config_number,
+            "energy": round(float(E_sod), 6),
+        },
+        "chosen_tm": chosen_tm,
+        "chosen_dopant": chosen_dopant,
+        "tm_sites": int(sum(tm_species.values())),
+        "dopant_sites": int(sum(dopant_species.values())),
+        "na_removed": int(NA_REMOVED_FIXED),
+        "mu_na": float(mu_na),
+        "sodiated_energy": float(E_sod),
+        "desodiated_energy": float(E_desod),
+        "voltage": round(float(V), 3),
+        "composition": nonzero_species,
+        "site_counts": counts,
+        "cif_doped": cif_doped,
+        "cif_sodiated_relaxed": cif_sodiated_relaxed,
+        "cif_desodiated_relaxed": cif_desodiated_relaxed,
+    }
+
+    yield {
+        "event": "result",
+        "message": "Screening completed",
+        "progress": 1.0,
+        **result,
+    }
+
+
+def run_screening(transition_metals, dopants, fractions, potential="uma"):
+    final_result = None
+    for item in run_screening_stream(
+        transition_metals=transition_metals,
+        dopants=dopants,
+        fractions=fractions,
+        potential=potential,
+    ):
+        if item.get("event") == "result":
+            final_result = {
+                k: v for k, v in item.items()
+                if k not in {"event", "message", "progress"}
+            }
+
+    if final_result is None:
+        raise RuntimeError("Screening did not produce a final result")
+
+    return final_result
+
+
+# ----------------------------
+# Explorer MD
+# ----------------------------
+
+def run_md_stream(
+    cif: str,
+    potential="uma",
+    should_stop: Callable[[], bool] | None = None,
+):
+    potential = normalize_potential(potential)
+    should_stop = should_stop or (lambda: False)
+    calc = get_calc(potential)
+
+    def cancelled_payload(message: str, **extra):
+        return {
+            "event": "cancelled",
+            "message": message,
+            "potential": potential,
+            **extra,
+        }
+
+    if should_stop():
+        yield cancelled_payload("MD cancelled before structure loading")
+        return
+
+    atoms = cif_string_to_atoms(cif)
+
+    yield {
+        "event": "status",
+        "message": "Loaded selected structure for MD",
+        "potential": potential,
+    }
+
+    if should_stop():
+        yield cancelled_payload("MD cancelled before vacancy creation")
+        return
+
+    atoms_md_seed, md_na_removed = create_random_na_vacancies(
+        atoms,
+        vacancy_fraction=MD_NA_VACANCY_FRACTION,
+    )
+
+    yield {
+        "event": "status",
+        "message": "Created random 25% Na vacancies",
+        "na_removed_for_md": int(md_na_removed),
+        "na_vacancy_fraction": MD_NA_VACANCY_FRACTION,
+    }
+
+    atoms_md = atoms_md_seed.copy()
+    atoms_md.calc = calc
+
+    if should_stop():
+        yield cancelled_payload(
+            "MD cancelled before pre-relaxation",
+            na_removed_for_md=int(md_na_removed),
+            na_vacancy_fraction=MD_NA_VACANCY_FRACTION,
+        )
+        return
+
+    yield {
+        "event": "status",
+        "message": "Starting MD pre-relaxation",
+    }
+
+    relax_ase(atoms_md, calc=calc, fmax=0.05, steps=120, label="MD pre-relaxation")
+
+    cif_md_start = atoms_to_cif_string(atoms_md)
+
+    yield {
+        "event": "status",
+        "message": "MD pre-relaxation finished",
+        "cif_md_start": cif_md_start,
+    }
+
+    if should_stop():
+        yield cancelled_payload(
+            "MD cancelled after pre-relaxation",
+            cif_md_start=cif_md_start,
+            na_removed_for_md=int(md_na_removed),
+            na_vacancy_fraction=MD_NA_VACANCY_FRACTION,
+        )
+        return
+
+    MaxwellBoltzmannDistribution(atoms_md, temperature_K=MD_TEMP_K)
+
+    dyn = Langevin(
+        atoms_md,
+        timestep=MD_TIMESTEP_FS * units.fs,
+        temperature_K=MD_TEMP_K,
+        friction=md_friction_for_potential(potential),
+    )
+
+    pbc = atoms_md.get_pbc()
+    cell = np.array(atoms_md.get_cell())
+
+    ref_scaled = atoms_md.get_scaled_positions(wrap=True)
+    prev_scaled = ref_scaled.copy()
+    cumulative_frac = np.zeros_like(ref_scaled)
+
+    na_mask = np.array([a.symbol == "Na" for a in atoms_md], dtype=bool)
+    non_na_mask = ~na_mask
+
+    temp_series_k = []
+
+    yield {
+        "event": "meta",
+        "potential": potential,
+        "temperature_k": MD_TEMP_K,
+        "timestep_fs": MD_TIMESTEP_FS,
+        "steps": MD_STEPS,
+        "sample_interval": MD_SAMPLE_INTERVAL,
+        "total_time_ps": MD_STEPS * MD_TIMESTEP_FS / 1000.0,
+        "n_atoms": len(atoms_md),
+        "n_na_atoms": int(np.sum(na_mask)),
+        "n_non_na_atoms": int(np.sum(non_na_mask)),
+        "na_vacancy_fraction": MD_NA_VACANCY_FRACTION,
+        "na_removed_for_md": int(md_na_removed),
+        "cif_md_start": cif_md_start,
+    }
+
+    for step in range(1, MD_STEPS + 1):
+        if should_stop():
+            avg_temp = float(np.mean(temp_series_k)) if temp_series_k else float(MD_TEMP_K)
+            final_temp = float(temp_series_k[-1]) if temp_series_k else float(MD_TEMP_K)
+            yield cancelled_payload(
+                f"MD stopped by user at step {step}",
+                step=step,
+                steps=MD_STEPS,
+                avg_temperature_k=avg_temp,
+                final_temperature_k=final_temp,
+                total_time_ps=step * MD_TIMESTEP_FS / 1000.0,
+                cif_md_start=cif_md_start,
+                na_removed_for_md=int(md_na_removed),
+                na_vacancy_fraction=MD_NA_VACANCY_FRACTION,
+            )
+            return
+
+        dyn.run(1)
+
+        curr_scaled = atoms_md.get_scaled_positions(wrap=True)
+        delta = curr_scaled - prev_scaled
+
+        delta[:, 0] = delta[:, 0] - np.round(delta[:, 0]) if pbc[0] else delta[:, 0]
+        delta[:, 1] = delta[:, 1] - np.round(delta[:, 1]) if pbc[1] else delta[:, 1]
+        delta[:, 2] = delta[:, 2] - np.round(delta[:, 2]) if pbc[2] else delta[:, 2]
+
+        cumulative_frac += delta
+        prev_scaled = curr_scaled
+
+        disp_cart = cumulative_frac @ cell
+        sq = np.sum(disp_cart ** 2, axis=1)
+
+        time_ps = step * MD_TIMESTEP_FS / 1000.0
+        msd_na = float(np.mean(sq[na_mask])) if np.any(na_mask) else 0.0
+        msd_non_na = float(np.mean(sq[non_na_mask])) if np.any(non_na_mask) else 0.0
+
+        ek = atoms_md.get_kinetic_energy()
+        t_inst = ek / (1.5 * units.kB * len(atoms_md))
+        temp_series_k.append(float(t_inst))
+
+        if step % MD_LOG_INTERVAL == 0 or step == 1 or step == MD_STEPS:
+            log(f"[MD] step {step}/{MD_STEPS} | T = {t_inst:.1f} K")
+
+        yield {
+            "event": "progress",
+            "step": step,
+            "steps": MD_STEPS,
+            "time_ps": float(time_ps),
+            "msd_na": msd_na,
+            "msd_non_na": msd_non_na,
+            "temperature_k": float(t_inst),
+            "progress": float(step / MD_STEPS),
+        }
+
+    avg_temp = float(np.mean(temp_series_k)) if temp_series_k else float(MD_TEMP_K)
+    final_temp = float(temp_series_k[-1]) if temp_series_k else float(MD_TEMP_K)
 
     yield {
         "event": "result",
         "potential": potential,
-        "voltage": voltage,
-        "sodiated_energy": sodiated_energy,
-        "desodiated_energy": desodiated_energy,
-        "tm_sites": len(transition_metals),
-        "dopant_sites": len(dopants),
-        "chosen_tm": chosen_tm,
-        "chosen_dopant": chosen_dopant,
-        "na_removed": na_removed,
-        "mu_na": mu_na,
-        "composition": composition,
-        "site_counts": {
-            "tm_candidates": len(transition_metals),
-            "dopant_candidates": len(dopants),
-        },
-        "n_configurations": len(configs),
-        "configuration_energies": configs,
-        "selected_configuration": selected_cfg,
-        "cif_doped": DEMO_CATHODE_CIF,
-        "cif_sodiated_relaxed": DEMO_CATHODE_CIF,
-        "cif_desodiated_relaxed": DEMO_CATHODE_CIF,
+        "temperature_k": MD_TEMP_K,
+        "timestep_fs": MD_TIMESTEP_FS,
+        "steps": MD_STEPS,
+        "sample_interval": MD_SAMPLE_INTERVAL,
+        "total_time_ps": MD_STEPS * MD_TIMESTEP_FS / 1000.0,
+        "n_atoms": len(atoms_md),
+        "n_na_atoms": int(np.sum(na_mask)),
+        "n_non_na_atoms": int(np.sum(non_na_mask)),
+        "avg_temperature_k": avg_temp,
+        "final_temperature_k": final_temp,
+        "na_vacancy_fraction": MD_NA_VACANCY_FRACTION,
+        "na_removed_for_md": int(md_na_removed),
+        "cif_md_start": cif_md_start,
     }
-
-
-def run_explorer_md_stream(
-    cif_text: str,
-    potential: str = "uma",
-):
-    potential = normalize_potential(potential)
-
-    file_bytes = cif_text.encode("utf-8")
-    species_seen: list[str] = []
-    avg_t_samples: list[float] = []
-
-    for item in run_nvt_md_stream(
-        filename="explorer_structure.cif",
-        file_bytes=file_bytes,
-        potential=potential,
-        temperature_k=MD_DEFAULT_TEMPERATURE_K,
-        timestep_fs=MD_DEFAULT_TIMESTEP_FS,
-        total_time_ps=MD_DEFAULT_TOTAL_TIME_PS,
-    ):
-        event = item.get("event")
-
-        if event == "meta":
-            species_seen = item.get("species", [])
-            yield {
-                "event": "meta",
-                "potential": potential,
-                "temperature_k": item.get("temperature_k"),
-                "timestep_fs": item.get("timestep_fs"),
-                "steps": item.get("steps"),
-                "total_time_ps": item.get("total_time_ps"),
-                "n_atoms": item.get("n_atoms"),
-                "n_na_atoms": sum(1 for sp in species_seen if sp == "Na"),
-                "n_non_na_atoms": sum(1 for sp in species_seen if sp != "Na"),
-                "na_vacancy_fraction": 0.0,
-                "na_removed_for_md": 0,
-                "cif_md_start": item.get("initial_cif", ""),
-            }
-
-        elif event == "progress":
-            msd_by_species = item.get("msd_by_species", {})
-            msd_na = float(msd_by_species.get("Na", 0.0))
-            non_na_values = [
-                float(v) for sp, v in msd_by_species.items() if sp != "Na"
-            ]
-            msd_non_na = float(np.mean(non_na_values)) if non_na_values else 0.0
-
-            temperature_k = float(item.get("temperature_k", MD_DEFAULT_TEMPERATURE_K))
-            avg_t_samples.append(temperature_k)
-
-            yield {
-                "event": "progress",
-                "step": item.get("step"),
-                "steps": item.get("steps"),
-                "time_ps": item.get("time_ps"),
-                "temperature_k": temperature_k,
-                "msd_na": msd_na,
-                "msd_non_na": msd_non_na,
-            }
-
-        elif event == "result":
-            final_t = float(item.get("temperature_k", MD_DEFAULT_TEMPERATURE_K))
-            avg_t = float(np.mean(avg_t_samples)) if avg_t_samples else final_t
-
-            yield {
-                "event": "result",
-                "potential": potential,
-                "avg_temperature_k": avg_t,
-                "final_temperature_k": final_t,
-                "cif_md_start": atoms_to_cif_string(
-                    uploaded_file_to_atoms("explorer_structure.cif", file_bytes)
-                ),
-            }
-
-        elif event == "cancelled":
-            yield item
