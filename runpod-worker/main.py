@@ -2,7 +2,7 @@ import json
 from typing import Dict
 from uuid import uuid4
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Body, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 
@@ -15,6 +15,8 @@ from model import (
     atoms_to_cif_string,
     run_nvt_md_stream,
     run_relaxation_stream,
+    run_screening_stream,
+    run_explorer_md_stream,
     uploaded_file_to_atoms,
 )
 
@@ -35,6 +37,11 @@ MD_SESSIONS: Dict[str, Dict] = {}
 MD_RESULTS: Dict[str, Dict] = {}
 MD_CANCEL_FLAGS: Dict[str, bool] = {}
 
+SCREENING_SESSIONS: Dict[str, Dict] = {}
+SCREENING_RESULTS: Dict[str, Dict] = {}
+
+EXPLORER_MD_SESSIONS: Dict[str, Dict] = {}
+EXPLORER_MD_RESULTS: Dict[str, Dict] = {}
 
 @app.get("/health")
 def health():
@@ -270,4 +277,106 @@ def download_upload_md_traj(result_id: str):
         payload["traj_path"],
         filename="md_trajectory.traj",
         media_type="application/octet-stream",
+    )
+
+@app.post("/run-session")
+async def create_screening_session(payload: dict = Body(...)):
+    session_id = uuid4().hex
+    SCREENING_SESSIONS[session_id] = payload
+    return {"session_id": session_id}
+
+
+@app.get("/run-stream/{session_id}")
+def run_stream(session_id: str):
+    payload = SCREENING_SESSIONS.pop(session_id, None)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Screening session not found or already used")
+
+    def event_stream():
+        try:
+            result_id = uuid4().hex
+
+            final_result = None
+            for item in run_screening_stream(
+                transition_metals=payload.get("transition_metals", []),
+                dopants=payload.get("dopants", []),
+                fractions=payload.get("fractions", {}),
+                potential=payload.get("potential", "uma"),
+            ):
+                if item.get("event") == "result":
+                    final_result = item
+                    SCREENING_RESULTS[result_id] = item
+
+                event = item.get("event", "progress")
+                yield f"event: {event}\n"
+                yield "data: " + json.dumps(item) + "\n\n"
+
+            yield "event: done\n"
+            yield 'data: {"message":"Screening completed"}\n\n'
+
+        except Exception as e:
+            yield "event: error\n"
+            yield "data: " + json.dumps({"error": str(e)}) + "\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.post("/run-md-session")
+async def create_explorer_md_session(payload: dict = Body(...)):
+    cif = payload.get("cif", "")
+    if not cif or not str(cif).strip():
+        raise HTTPException(status_code=400, detail="Missing CIF for explorer MD")
+
+    session_id = uuid4().hex
+    EXPLORER_MD_SESSIONS[session_id] = {
+        "cif": cif,
+        "potential": payload.get("potential", "uma"),
+    }
+    return {"session_id": session_id}
+
+
+@app.get("/run-md-stream/{session_id}")
+def run_md_stream(session_id: str):
+    payload = EXPLORER_MD_SESSIONS.pop(session_id, None)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Explorer MD session not found or already used")
+
+    def event_stream():
+        try:
+            result_id = uuid4().hex
+
+            for item in run_explorer_md_stream(
+                cif_text=payload["cif"],
+                potential=payload.get("potential", "uma"),
+            ):
+                if item.get("event") == "result":
+                    EXPLORER_MD_RESULTS[result_id] = item
+
+                event = item.get("event", "progress")
+                yield f"event: {event}\n"
+                yield "data: " + json.dumps(item) + "\n\n"
+
+            yield "event: done\n"
+            yield 'data: {"message":"Explorer MD completed"}\n\n'
+
+        except Exception as e:
+            yield "event: error\n"
+            yield "data: " + json.dumps({"error": str(e)}) + "\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
