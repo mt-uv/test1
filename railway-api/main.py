@@ -1,7 +1,7 @@
 import os
 
 import httpx
-from fastapi import FastAPI, File, Form, UploadFile
+from fastapi import FastAPI, File, Form, UploadFile,Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 
@@ -242,5 +242,72 @@ async def download_upload_md_traj(result_id: str):
                 "content-disposition",
                 'attachment; filename="md_trajectory.traj"',
             )
+        },
+    )
+
+@app.post("/run-session")
+async def run_session(payload: dict = Body(...)):
+    async with httpx.AsyncClient(timeout=120) as client:
+        resp = await client.post(f"{RUNPOD_BASE_URL}/run-session", json=payload)
+
+    return Response(
+        content=resp.content,
+        status_code=resp.status_code,
+        media_type=resp.headers.get("content-type", "application/json"),
+    )
+
+
+@app.get("/run-stream/{session_id}")
+async def run_stream(session_id: str):
+    async def streamer():
+        async with httpx.AsyncClient(timeout=None) as client:
+            async with client.stream(
+                "GET",
+                f"{RUNPOD_BASE_URL}/run-stream/{session_id}",
+            ) as resp:
+                async for chunk in resp.aiter_bytes():
+                    yield chunk
+
+    return StreamingResponse(
+        streamer(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.post("/run-md-session")
+async def run_md_session(payload: dict = Body(...)):
+    async with httpx.AsyncClient(timeout=120) as client:
+        resp = await client.post(f"{RUNPOD_BASE_URL}/run-md-session", json=payload)
+
+    return Response(
+        content=resp.content,
+        status_code=resp.status_code,
+        media_type=resp.headers.get("content-type", "application/json"),
+    )
+
+
+@app.get("/run-md-stream/{session_id}")
+async def run_md_stream(session_id: str):
+    async def streamer():
+        async with httpx.AsyncClient(timeout=None) as client:
+            async with client.stream(
+                "GET",
+                f"{RUNPOD_BASE_URL}/run-md-stream/{session_id}",
+            ) as resp:
+                async for chunk in resp.aiter_bytes():
+                    yield chunk
+
+    return StreamingResponse(
+        streamer(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
         },
     )
