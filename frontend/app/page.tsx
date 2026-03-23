@@ -2175,16 +2175,7 @@ const entropyLabel = entropyLevel === "high"
                   </StatusBadge>
                 </div>
 
-                {entropyLevel === "high" && (
-                  <div className="mt-4 rounded-[16px] border border-emerald-200 bg-emerald-50/70 p-3">
-                    <div className="text-sm font-semibold text-emerald-900">
-                      High entropy material
-                    </div>
-                    <div className="mt-1 text-xs leading-6 text-emerald-800">
-                      The configurational entropy exceeds 1.5R for the selected TM/dopant composition.
-                    </div>
-                  </div>
-                )}
+                {entropyLevel === "high"}
 
                 {!fractionsValid && (
                   <div className="mt-2 text-xs text-rose-600">
