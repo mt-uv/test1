@@ -1313,9 +1313,10 @@ export default function Page() {
             <h1 className="max-w-5xl text-5xl font-semibold tracking-tight md:text-6xl">
               <span className="text-slate-950">Crystall</span>
               <span className="relative inline-block">
-                <span className="bg-[linear-gradient(135deg,#67e8f9_0%,#60a5fa_30%,#818cf8_65%,#c084fc_100%)] bg-clip-text text-transparent drop-shadow-[0_0_5px_rgba(96,165,250,0.30)]">
+                <span className="bg-[linear-gradient(135deg,#22d3ee_0%,#3b82f6_40%,#7c3aed_80%)] bg-clip-text text-transparent">
                   AI
                 </span>
+
                 <span className="pointer-events-none absolute inset-0 blur-lg opacity-5 bg-[linear-gradient(135deg,#67e8f9_0%,#60a5fa_30%,#818cf8_65%,#c084fc_100%)]" />
                 </span>
                 <span className="text-slate-950">ne</span>
