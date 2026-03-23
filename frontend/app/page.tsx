@@ -1349,7 +1349,7 @@ export default function Page() {
             onClick={() => setActiveTab("md")}
             icon={<IconPulse />}
           >
-            Run Molecular Dynamics
+            Molecular Dynamics
           </TabButton>
         </div>
 
@@ -1394,15 +1394,6 @@ export default function Page() {
                     <IconRelax />
                     Structure Optimization
                   </div>
-
-                  <h2 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
-                    Relax Structure
-                  </h2>
-
-                  <p className="mt-4 max-w-4xl text-lg leading-8 text-slate-600 md:text-xl">
-                    Upload a structure, preview it, choose the potential and
-                    optimizer, then stream the relaxation output in real time.
-                  </p>
                 </div>
               </div>
 
