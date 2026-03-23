@@ -1311,12 +1311,11 @@ export default function Page() {
 
           <div className="mt-6">
             <h1 className="max-w-5xl text-5xl font-semibold tracking-tight text-slate-950 md:text-6xl">
-              Molecular Simulations with Machine Learning Potentials
+              CrystallAIne
             </h1>
 
             <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600 md:text-2xl md:leading-9">
-              A cleaner workflow for structure relaxation, molecular dynamics,
-              and crystal inspection — all in one interface.
+              Molecular Simulations with Machine Learning Potentials
             </p>
           </div>
         </div>
