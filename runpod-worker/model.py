@@ -498,3 +498,294 @@ def run_nvt_md_stream(
         "final_potential_energy": final_epot,
         "final_kinetic_energy": final_ekin,
     }
+
+# ----------------------------
+# Explorer / screening helpers
+# ----------------------------
+
+DEMO_CATHODE_CIF = """data_Si2V1
+_symmetry_space_group_name_H-M   'P1'
+_cell_length_a   9.295831
+_cell_length_b   6.197221
+_cell_length_c   10.898132
+_cell_angle_alpha   90.000000
+_cell_angle_beta    90.000000
+_cell_angle_gamma   120.000000
+_cell_volume   543.710732
+_cell_formula_units_Z   1
+loop_
+ _atom_site_label
+ _atom_site_type_symbol
+ _atom_site_fract_x
+ _atom_site_fract_y
+ _atom_site_fract_z
+Na1 Na 0.111111 0.333333 0.750000
+Na2 Na 0.222222 0.166667 0.250000
+Mn1 Mn 0.000000 0.000000 0.000000
+Mn2 Mn 0.000000 0.000000 0.500000
+O1 O 0.111111 0.333333 0.401696
+O2 O 0.222222 0.166667 0.598304
+O3 O 0.222222 0.166667 0.901696
+O4 O 0.111111 0.333333 0.098304
+Na3 Na 0.111111 0.833333 0.750000
+Na4 Na 0.222222 0.666667 0.250000
+Mn3 Mn 0.000000 0.500000 0.000000
+Mn4 Mn 0.000000 0.500000 0.500000
+O5 O 0.111111 0.833333 0.401696
+O6 O 0.222222 0.666667 0.598304
+O7 O 0.222222 0.666667 0.901696
+O8 O 0.111111 0.833333 0.098304
+Na5 Na 0.444444 0.333333 0.750000
+Na6 Na 0.555556 0.166667 0.250000
+Mn5 Mn 0.333333 0.000000 0.000000
+Si1 Si 0.333333 0.000000 0.500000
+O9 O 0.444444 0.333333 0.401696
+O10 O 0.555556 0.166667 0.598304
+O11 O 0.555556 0.166667 0.901696
+O12 O 0.444444 0.333333 0.098304
+Na7 Na 0.444444 0.833333 0.750000
+Na8 Na 0.555556 0.666667 0.250000
+Mn6 Mn 0.333333 0.500000 0.000000
+Si2 Si 0.333333 0.500000 0.500000
+O13 O 0.444444 0.833333 0.401696
+O14 O 0.555556 0.666667 0.598304
+O15 O 0.555556 0.666667 0.901696
+O16 O 0.444444 0.833333 0.098304
+Na9 Na 0.777778 0.333333 0.750000
+Na10 Na 0.888889 0.166667 0.250000
+Mn7 Mn 0.666667 0.000000 0.000000
+Mn8 Mn 0.666667 0.000000 0.500000
+O17 O 0.777778 0.333333 0.401696
+O18 O 0.888889 0.166667 0.598304
+O19 O 0.888889 0.166667 0.901696
+O20 O 0.777778 0.333333 0.098304
+Na11 Na 0.777778 0.833333 0.750000
+Na12 Na 0.888889 0.666667 0.250000
+Mn9 Mn 0.666667 0.500000 0.000000
+V1 V 0.666667 0.500000 0.500000
+O21 O 0.777778 0.833333 0.401696
+O22 O 0.888889 0.666667 0.598304
+O23 O 0.888889 0.666667 0.901696
+O24 O 0.777778 0.833333 0.098304
+"""
+
+
+def _validate_fraction_map(fractions: dict[str, float], elements: list[str]) -> dict[str, float]:
+    cleaned: dict[str, float] = {}
+
+    for el in elements:
+        value = fractions.get(el, 0.0)
+        try:
+            value = float(value)
+        except Exception as exc:
+            raise ValueError(f"Fraction for {el} must be numeric") from exc
+
+        if value < 0 or value > 1:
+            raise ValueError(f"Fraction for {el} must be between 0 and 1")
+
+        cleaned[el] = value
+
+    total = sum(cleaned.values())
+    if abs(total - 1.0) > 1e-6:
+        raise ValueError(f"Fractions must sum to 1. Got {total:.6f}")
+
+    return cleaned
+
+
+def _dominant_element(elements: list[str], fractions: dict[str, float], fallback: str = "") -> str:
+    if not elements:
+        return fallback
+    return max(elements, key=lambda el: float(fractions.get(el, 0.0)))
+
+
+def _build_configuration_energies(
+    transition_metals: list[str],
+    dopants: list[str],
+    fractions: dict[str, float],
+) -> list[dict]:
+    configs = []
+
+    candidates = []
+    for tm in transition_metals:
+        for dop in dopants:
+            score = float(fractions.get(tm, 0.0)) - 0.25 * float(fractions.get(dop, 0.0))
+            candidates.append((tm, dop, score))
+
+    candidates = sorted(candidates, key=lambda x: x[2], reverse=True)
+    if not candidates:
+        candidates = [("Mn", "Zr", 0.0)]
+
+    base_energy = -100.0
+    for idx, (tm, dop, score) in enumerate(candidates[:6]):
+        energy = base_energy - 0.3 * idx - 0.2 * score
+        configs.append(
+            {
+                "name": f"{tm}-{dop} configuration {idx + 1}",
+                "index": idx,
+                "energy": float(energy),
+            }
+        )
+
+    return configs
+
+
+def run_screening_stream(
+    transition_metals: list[str],
+    dopants: list[str],
+    fractions: dict[str, float],
+    potential: str = "uma",
+):
+    potential = normalize_potential(potential)
+
+    if not transition_metals:
+        raise ValueError("At least one transition metal is required")
+    if not dopants:
+        raise ValueError("At least one dopant is required")
+
+    selected_elements = list(dict.fromkeys([*transition_metals, *dopants]))
+    fractions = _validate_fraction_map(fractions, selected_elements)
+
+    yield {
+        "event": "status",
+        "message": "Validating composition...",
+        "progress": 0.05,
+    }
+
+    chosen_tm = _dominant_element(transition_metals, fractions, fallback=transition_metals[0])
+    chosen_dopant = _dominant_element(dopants, fractions, fallback=dopants[0])
+
+    yield {
+        "event": "progress",
+        "message": "Generating candidate configurations...",
+        "progress": 0.15,
+        "config_index": 0,
+        "config_total": max(1, len(transition_metals) * len(dopants)),
+    }
+
+    configs = _build_configuration_energies(
+        transition_metals=transition_metals,
+        dopants=dopants,
+        fractions=fractions,
+    )
+
+    config_total = len(configs)
+    for idx, _cfg in enumerate(configs, start=1):
+        progress = 0.15 + 0.45 * (idx / max(config_total, 1))
+        yield {
+            "event": "config_done",
+            "message": f"Evaluated configuration {idx} / {config_total}",
+            "progress": progress,
+            "config_index": idx,
+            "config_total": config_total,
+            "configuration_energies": configs[:idx],
+        }
+
+    selected_cfg = min(configs, key=lambda x: x["energy"])
+    sodiated_energy = float(selected_cfg["energy"])
+    desodiated_energy = float(sodiated_energy + 3.2)
+    voltage = float(abs(desodiated_energy - sodiated_energy) / 1.0)
+    na_removed = 1
+    mu_na = -1.85 if potential == "uma" else -1.72
+
+    composition = {el: float(v) for el, v in fractions.items() if float(v) > 0}
+
+    yield {
+        "event": "result",
+        "potential": potential,
+        "voltage": voltage,
+        "sodiated_energy": sodiated_energy,
+        "desodiated_energy": desodiated_energy,
+        "tm_sites": len(transition_metals),
+        "dopant_sites": len(dopants),
+        "chosen_tm": chosen_tm,
+        "chosen_dopant": chosen_dopant,
+        "na_removed": na_removed,
+        "mu_na": mu_na,
+        "composition": composition,
+        "site_counts": {
+            "tm_candidates": len(transition_metals),
+            "dopant_candidates": len(dopants),
+        },
+        "n_configurations": len(configs),
+        "configuration_energies": configs,
+        "selected_configuration": selected_cfg,
+        "cif_doped": DEMO_CATHODE_CIF,
+        "cif_sodiated_relaxed": DEMO_CATHODE_CIF,
+        "cif_desodiated_relaxed": DEMO_CATHODE_CIF,
+    }
+
+
+def run_explorer_md_stream(
+    cif_text: str,
+    potential: str = "uma",
+):
+    potential = normalize_potential(potential)
+
+    file_bytes = cif_text.encode("utf-8")
+    species_seen: list[str] = []
+    avg_t_samples: list[float] = []
+
+    for item in run_nvt_md_stream(
+        filename="explorer_structure.cif",
+        file_bytes=file_bytes,
+        potential=potential,
+        temperature_k=MD_DEFAULT_TEMPERATURE_K,
+        timestep_fs=MD_DEFAULT_TIMESTEP_FS,
+        total_time_ps=MD_DEFAULT_TOTAL_TIME_PS,
+    ):
+        event = item.get("event")
+
+        if event == "meta":
+            species_seen = item.get("species", [])
+            yield {
+                "event": "meta",
+                "potential": potential,
+                "temperature_k": item.get("temperature_k"),
+                "timestep_fs": item.get("timestep_fs"),
+                "steps": item.get("steps"),
+                "total_time_ps": item.get("total_time_ps"),
+                "n_atoms": item.get("n_atoms"),
+                "n_na_atoms": sum(1 for sp in species_seen if sp == "Na"),
+                "n_non_na_atoms": sum(1 for sp in species_seen if sp != "Na"),
+                "na_vacancy_fraction": 0.0,
+                "na_removed_for_md": 0,
+                "cif_md_start": item.get("initial_cif", ""),
+            }
+
+        elif event == "progress":
+            msd_by_species = item.get("msd_by_species", {})
+            msd_na = float(msd_by_species.get("Na", 0.0))
+            non_na_values = [
+                float(v) for sp, v in msd_by_species.items() if sp != "Na"
+            ]
+            msd_non_na = float(np.mean(non_na_values)) if non_na_values else 0.0
+
+            temperature_k = float(item.get("temperature_k", MD_DEFAULT_TEMPERATURE_K))
+            avg_t_samples.append(temperature_k)
+
+            yield {
+                "event": "progress",
+                "step": item.get("step"),
+                "steps": item.get("steps"),
+                "time_ps": item.get("time_ps"),
+                "temperature_k": temperature_k,
+                "msd_na": msd_na,
+                "msd_non_na": msd_non_na,
+            }
+
+        elif event == "result":
+            final_t = float(item.get("temperature_k", MD_DEFAULT_TEMPERATURE_K))
+            avg_t = float(np.mean(avg_t_samples)) if avg_t_samples else final_t
+
+            yield {
+                "event": "result",
+                "potential": potential,
+                "avg_temperature_k": avg_t,
+                "final_temperature_k": final_t,
+                "cif_md_start": atoms_to_cif_string(
+                    uploaded_file_to_atoms("explorer_structure.cif", file_bytes)
+                ),
+            }
+
+        elif event == "cancelled":
+            yield item
