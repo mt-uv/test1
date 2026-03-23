@@ -1682,6 +1682,34 @@ function CathodeExplorer() {
     return `Na1 ${parts.join(" ")} O2`;
   }, [selectedElements, fractions]);
 
+const entropyOverR = useMemo(() => {
+  const xs = selectedElements
+    .map((el) => Number(fractions[el]))
+    .filter((v) => Number.isFinite(v) && v > 0);
+
+  if (xs.length === 0) return 0;
+
+  return -xs.reduce((sum, x) => sum + x * Math.log(x), 0);
+}, [selectedElements, fractions]);
+
+const entropyLevel = useMemo<"low" | "medium" | "high">(() => {
+  if (entropyOverR >= 1.6) return "high";
+  if (entropyOverR >= 1.0) return "medium";
+  return "low";
+}, [entropyOverR]);
+
+const entropyTone = entropyLevel === "high"
+  ? "emerald"
+  : entropyLevel === "medium"
+  ? "violet"
+  : "slate";
+
+const entropyLabel = entropyLevel === "high"
+  ? "High entropy material"
+  : entropyLevel === "medium"
+  ? "Medium entropy material"
+  : "Low entropy material";
+  
   function toggleItem(
     arr: string[],
     value: string,
@@ -2132,9 +2160,32 @@ function CathodeExplorer() {
                 <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                   Formula preview
                 </div>
+
                 <div className="mt-2 text-base font-semibold text-slate-900">
                   {compositionPreview}
                 </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <StatusBadge tone="slate">
+                    ΔS/R = {entropyOverR.toFixed(2)}
+                  </StatusBadge>
+
+                  <StatusBadge tone={entropyTone as "slate" | "violet" | "emerald"}>
+                    {entropyLabel}
+                  </StatusBadge>
+                </div>
+
+                {entropyLevel === "high" && (
+                  <div className="mt-4 rounded-[16px] border border-emerald-200 bg-emerald-50/70 p-3">
+                    <div className="text-sm font-semibold text-emerald-900">
+                      High entropy criterion satisfied
+                    </div>
+                    <div className="mt-1 text-xs leading-6 text-emerald-800">
+                      The configurational entropy exceeds 1.6R for the selected TM/dopant composition.
+                    </div>
+                  </div>
+                )}
+
                 {!fractionsValid && (
                   <div className="mt-2 text-xs text-rose-600">
                     Enter valid fractions between 0 and 1, and make sure the total
@@ -2142,7 +2193,6 @@ function CathodeExplorer() {
                   </div>
                 )}
               </div>
-            </div>
 
             <div className="mt-7 flex flex-wrap items-center gap-3">
               <button
