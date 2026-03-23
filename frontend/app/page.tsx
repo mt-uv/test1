@@ -1138,6 +1138,1297 @@ function MolecularDynamicsPanel() {
   );
 }
 
+function LiveMSDChart({
+  timePs,
+  msdNa,
+  msdNonNa,
+  live,
+}: {
+  timePs: number[];
+  msdNa: number[];
+  msdNonNa: number[];
+  live: boolean;
+}) {
+  const width = 980;
+  const height = 360;
+  const padL = 58;
+  const padR = 20;
+  const padT = 22;
+  const padB = 46;
+
+  const n = Math.min(timePs.length, msdNa.length, msdNonNa.length);
+  const xs = timePs.slice(0, n);
+  const ysNa = msdNa.slice(0, n);
+  const ysNonNa = msdNonNa.slice(0, n);
+
+  const maxX = Math.max(...xs, 1);
+  const maxY = Math.max(...ysNa, ...ysNonNa, 1e-6);
+
+  const xScale = (x: number) => padL + (x / maxX) * (width - padL - padR);
+  const yScale = (y: number) =>
+    height - padB - (y / maxY) * (height - padT - padB);
+
+  const buildPath = (ys: number[]) =>
+    ys
+      .map(
+        (y, i) =>
+          `${i === 0 ? "M" : "L"} ${xScale(xs[i]).toFixed(2)} ${yScale(y).toFixed(2)}`
+      )
+      .join(" ");
+
+  const xTicks = 5;
+  const yTicks = 5;
+
+  return (
+    <div className="overflow-hidden rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#fafaff_100%)] shadow-sm">
+      <div className="flex items-center justify-between border-b border-slate-200/80 px-5 py-4">
+        <div>
+          <div className="text-sm font-semibold text-slate-900">
+            Live MSD vs time
+          </div>
+          <div className="mt-1 text-xs text-slate-500">
+            Na and non-Na displacement streamed during MD
+          </div>
+        </div>
+        <StatusBadge tone={live ? "violet" : "emerald"} live={live}>
+          {live ? "Streaming live" : "Run complete"}
+        </StatusBadge>
+      </div>
+
+      <div className="p-4">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
+          <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full">
+            {Array.from({ length: xTicks + 1 }).map((_, i) => {
+              const val = (maxX * i) / xTicks;
+              const x = xScale(val);
+              return (
+                <g key={`x-${i}`}>
+                  <line
+                    x1={x}
+                    y1={padT}
+                    x2={x}
+                    y2={height - padB}
+                    stroke="rgba(148,163,184,0.18)"
+                    strokeWidth="1"
+                  />
+                  <text
+                    x={x}
+                    y={height - padB + 20}
+                    textAnchor="middle"
+                    fontSize="11"
+                    fill="#64748b"
+                  >
+                    {val.toFixed(2)}
+                  </text>
+                </g>
+              );
+            })}
+
+            {Array.from({ length: yTicks + 1 }).map((_, i) => {
+              const val = (maxY * i) / yTicks;
+              const y = yScale(val);
+              return (
+                <g key={`y-${i}`}>
+                  <line
+                    x1={padL}
+                    y1={y}
+                    x2={width - padR}
+                    y2={y}
+                    stroke="rgba(148,163,184,0.18)"
+                    strokeWidth="1"
+                  />
+                  <text
+                    x={padL - 8}
+                    y={y + 4}
+                    textAnchor="end"
+                    fontSize="11"
+                    fill="#64748b"
+                  >
+                    {val.toFixed(2)}
+                  </text>
+                </g>
+              );
+            })}
+
+            <line
+              x1={padL}
+              y1={padT}
+              x2={padL}
+              y2={height - padB}
+              stroke="#94a3b8"
+              strokeWidth="1.5"
+            />
+            <line
+              x1={padL}
+              y1={height - padB}
+              x2={width - padR}
+              y2={height - padB}
+              stroke="#94a3b8"
+              strokeWidth="1.5"
+            />
+
+            {n > 0 && (
+              <>
+                <path
+                  d={buildPath(ysNa)}
+                  fill="none"
+                  stroke="#8b5cf6"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d={buildPath(ysNonNa)}
+                  fill="none"
+                  stroke="#10b981"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+
+                <circle
+                  cx={xScale(xs[xs.length - 1])}
+                  cy={yScale(ysNa[ysNa.length - 1])}
+                  r={live ? 5.5 : 4.5}
+                  fill="#8b5cf6"
+                  className={live ? "animate-pulse" : ""}
+                />
+                <circle
+                  cx={xScale(xs[xs.length - 1])}
+                  cy={yScale(ysNonNa[ysNonNa.length - 1])}
+                  r={live ? 5.5 : 4.5}
+                  fill="#10b981"
+                  className={live ? "animate-pulse" : ""}
+                />
+              </>
+            )}
+
+            <text
+              x={(padL + width - padR) / 2}
+              y={height - 10}
+              textAnchor="middle"
+              fontSize="12"
+              fill="#475569"
+            >
+              Time (ps)
+            </text>
+
+            <text
+              x="16"
+              y={(padT + height - padB) / 2}
+              transform={`rotate(-90 16 ${(padT + height - padB) / 2})`}
+              textAnchor="middle"
+              fontSize="12"
+              fill="#475569"
+            >
+              MSD (Å²)
+            </text>
+          </svg>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-600">
+          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-violet-500" />
+            <span className="font-medium">Na MSD</span>
+          </div>
+          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            <span className="font-medium">Non-Na MSD</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type ConfigEnergy = {
+  name: string;
+  index: number;
+  energy: number;
+};
+
+type SelectedConfiguration = {
+  name: string;
+  index: number;
+  energy: number;
+};
+
+type ExplorerMdMeta = {
+  potential?: string;
+  temperature_k?: number;
+  timestep_fs?: number;
+  steps?: number;
+  sample_interval?: number;
+  total_time_ps?: number;
+  n_atoms?: number;
+  n_na_atoms?: number;
+  n_non_na_atoms?: number;
+  na_vacancy_fraction?: number;
+  na_removed_for_md?: number;
+  cif_md_start?: string;
+  avg_temperature_k?: number;
+  final_temperature_k?: number;
+};
+
+type ExplorerResult = {
+  potential?: string;
+  voltage: number;
+  sodiated_energy: number;
+  desodiated_energy: number;
+  tm_sites: number;
+  dopant_sites: number;
+  chosen_tm: string;
+  chosen_dopant: string;
+  na_removed: number;
+  mu_na: number;
+  composition?: Record<string, number>;
+  site_counts?: Record<string, number>;
+  n_configurations?: number;
+  configuration_energies?: ConfigEnergy[];
+  selected_configuration?: SelectedConfiguration;
+  cif_doped?: string;
+  cif_sodiated_relaxed?: string;
+  cif_desodiated_relaxed?: string;
+};
+
+type ScreeningProgressState = {
+  message: string;
+  progress: number;
+  configIndex: number;
+  configTotal: number;
+  etaSeconds: number | null;
+};
+
+type ExplorerStructureTab = "doped" | "sod" | "desod" | "md";
+
+const TM_OPTIONS = ["Mn", "Ni", "Co", "Fe", "Cr", "V", "Ti"];
+const DOPANT_OPTIONS = ["Mg", "Al", "Zn", "Cu", "Zr", "Y", "Nb"];
+
+function ExplorerChip({
+  label,
+  checked,
+  onToggle,
+}: {
+  label: string;
+  checked: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={cn(
+        "rounded-2xl border px-4 py-2 text-sm font-semibold transition",
+        checked
+          ? "border-violet-300 bg-violet-50 text-violet-700 shadow-sm"
+          : "border-slate-200 bg-white text-slate-600 hover:-translate-y-[1px] hover:border-slate-300 hover:bg-slate-50"
+      )}
+      aria-pressed={checked}
+    >
+      {label}
+    </button>
+  );
+}
+
+function ExplorerStructureTabButton({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-xl border px-4 py-2 text-sm font-semibold transition",
+        active
+          ? "border-violet-200 bg-violet-50 text-violet-700 shadow-sm"
+          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: React.ReactNode;
+  tone?: "default" | "violet" | "emerald";
+}) {
+  const styles = {
+    default: "border-slate-200 bg-slate-50/80",
+    violet: "border-violet-200 bg-violet-50/80",
+    emerald: "border-emerald-200 bg-emerald-50/80",
+  };
+
+  return (
+    <div className={cn("rounded-[22px] border p-4 shadow-sm", styles[tone])}>
+      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </div>
+      <div className="mt-2 text-lg font-semibold text-slate-900">{value}</div>
+    </div>
+  );
+}
+
+function ProgressCard({
+  progress,
+  message,
+  configIndex,
+  configTotal,
+  etaSeconds,
+}: ScreeningProgressState) {
+  return (
+    <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#fcfcff_0%,#f5f7fb_100%)] shadow-inner">
+      <div className="flex items-start justify-between gap-4 px-5 py-4">
+        <div>
+          <div className="text-sm font-semibold text-slate-800">
+            {message || "Running screening..."}
+          </div>
+          {configTotal > 0 && (
+            <div className="mt-1 text-xs text-slate-500">
+              Configuration {configIndex} / {configTotal}
+            </div>
+          )}
+          {etaSeconds != null && etaSeconds > 0 && (
+            <div className="mt-1 text-xs text-slate-500">
+              Estimated remaining time: ~{etaSeconds}s
+            </div>
+          )}
+        </div>
+        <StatusBadge tone="violet">{Math.round(progress * 100)}%</StatusBadge>
+      </div>
+
+      <div className="px-5 pb-5">
+        <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200">
+          <div
+            className="h-full rounded-full bg-[linear-gradient(135deg,#7c3aed_0%,#8b5cf6_45%,#6366f1_100%)] transition-all duration-300"
+            style={{ width: `${Math.max(2, progress * 100)}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExplorerConfigurationGrid({
+  configs,
+  selectedIndex,
+}: {
+  configs: ConfigEnergy[];
+  selectedIndex?: number;
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      {configs.map((cfg) => {
+        const selected = cfg.index === selectedIndex;
+
+        return (
+          <div
+            key={cfg.index}
+            className={cn(
+              "rounded-[22px] border p-4 shadow-sm",
+              selected
+                ? "border-emerald-200 bg-emerald-50/80"
+                : "border-slate-200 bg-white"
+            )}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div className="text-sm font-semibold text-slate-900">
+                {cfg.name}
+              </div>
+              <div className="text-sm font-medium text-slate-600">
+                {cfg.energy.toFixed(6)} eV
+              </div>
+            </div>
+
+            {selected && (
+              <div className="mt-2 text-xs font-medium text-emerald-700">
+                Lowest-energy configuration selected
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CathodeExplorer() {
+  const [selectedPotential, setSelectedPotential] =
+    useState<PotentialOption>("uma");
+  const [selectedTMs, setSelectedTMs] = useState<string[]>(["Ni"]);
+  const [selectedDopants, setSelectedDopants] = useState<string[]>(["Zr"]);
+
+  const [fractions, setFractions] = useState<Record<string, string>>({
+    Ni: "1.0",
+    Zr: "0.0",
+  });
+
+  const [result, setResult] = useState<ExplorerResult | null>(null);
+
+  const [mdMeta, setMdMeta] = useState<ExplorerMdMeta | null>(null);
+  const [mdTimePs, setMdTimePs] = useState<number[]>([]);
+  const [mdMsdNa, setMdMsdNa] = useState<number[]>([]);
+  const [mdMsdNonNa, setMdMsdNonNa] = useState<number[]>([]);
+  const [mdCurrentStep, setMdCurrentStep] = useState(0);
+  const [mdCurrentTemp, setMdCurrentTemp] = useState<number | null>(null);
+  const [mdLive, setMdLive] = useState(false);
+
+  const [loading, setLoading] = useState(false);
+  const [mdLoading, setMdLoading] = useState(false);
+  const [mdStage, setMdStage] = useState("");
+  const [activeStructureTab, setActiveStructureTab] =
+    useState<ExplorerStructureTab>("doped");
+
+  const [screeningProgress, setScreeningProgress] =
+    useState<ScreeningProgressState>({
+      message: "",
+      progress: 0,
+      configIndex: 0,
+      configTotal: 0,
+      etaSeconds: null,
+    });
+
+  const [screeningStartedAt, setScreeningStartedAt] = useState<number | null>(
+    null
+  );
+
+  const canRun = selectedTMs.length > 0 && selectedDopants.length > 0;
+
+  const selectedElements = useMemo(
+    () => [...selectedTMs, ...selectedDopants],
+    [selectedTMs, selectedDopants]
+  );
+
+  useEffect(() => {
+    setFractions((prev) => {
+      const next: Record<string, string> = {};
+      for (const el of selectedElements) {
+        next[el] = prev[el] ?? "";
+      }
+      return next;
+    });
+  }, [selectedElements]);
+
+  const tmSubtitle = useMemo(
+    () => (selectedTMs.length ? `${selectedTMs.length} selected` : "Select ≥ 1"),
+    [selectedTMs]
+  );
+
+  const dopSubtitle = useMemo(
+    () =>
+      selectedDopants.length
+        ? `${selectedDopants.length} selected`
+        : "Select ≥ 1",
+    [selectedDopants]
+  );
+
+  const selectedPotentialLabel = useMemo(
+    () => (selectedPotential === "uma" ? "UMA" : "ORB"),
+    [selectedPotential]
+  );
+
+  const resultPotentialLabel = useMemo(() => {
+    const value = (result?.potential ?? selectedPotential).toLowerCase();
+    return value === "uma" ? "UMA" : "ORB";
+  }, [result?.potential, selectedPotential]);
+
+  const mdPotentialLabel = useMemo(() => {
+    const value = (mdMeta?.potential ?? selectedPotential).toLowerCase();
+    return value === "uma" ? "UMA" : "ORB";
+  }, [mdMeta?.potential, selectedPotential]);
+
+  const fractionSum = useMemo(() => {
+    return selectedElements.reduce((sum, el) => {
+      const v = Number(fractions[el]);
+      return sum + (Number.isFinite(v) ? v : 0);
+    }, 0);
+  }, [selectedElements, fractions]);
+
+  const fractionsValid = useMemo(() => {
+    if (selectedElements.length === 0) return false;
+
+    for (const el of selectedElements) {
+      const raw = fractions[el];
+      if (raw === "" || raw === undefined) return false;
+      const v = Number(raw);
+      if (!Number.isFinite(v) || v < 0 || v > 1) return false;
+    }
+
+    return Math.abs(fractionSum - 1) < 1e-6;
+  }, [selectedElements, fractions, fractionSum]);
+
+  const compositionPreview = useMemo(() => {
+    const parts = selectedElements
+      .map((el) => {
+        const raw = fractions[el];
+        if (raw === "" || raw === undefined) return null;
+        const v = Number(raw);
+        if (!Number.isFinite(v) || v <= 0) return null;
+        return `${el}${v}`;
+      })
+      .filter(Boolean);
+
+    return `Na1 ${parts.join(" ")} O2`;
+  }, [selectedElements, fractions]);
+
+  function toggleItem(
+    arr: string[],
+    value: string,
+    setArr: React.Dispatch<React.SetStateAction<string[]>>
+  ) {
+    setArr(arr.includes(value) ? arr.filter((x) => x !== value) : [...arr, value]);
+  }
+
+  function resetMDState() {
+    setMdMeta(null);
+    setMdTimePs([]);
+    setMdMsdNa([]);
+    setMdMsdNonNa([]);
+    setMdCurrentStep(0);
+    setMdCurrentTemp(null);
+    setMdLive(false);
+  }
+
+  async function runScreening() {
+    if (!canRun || !fractionsValid) return;
+
+    const payloadFractions: Record<string, number> = {};
+    for (const el of selectedElements) {
+      payloadFractions[el] = Number(fractions[el]);
+    }
+
+    setLoading(true);
+    setResult(null);
+    resetMDState();
+    setActiveStructureTab("doped");
+    setScreeningProgress({
+      message: "Creating screening session...",
+      progress: 0,
+      configIndex: 0,
+      configTotal: 0,
+      etaSeconds: null,
+    });
+    setScreeningStartedAt(Date.now());
+
+    try {
+      const sessionRes = await fetch(`${API_BASE}/run-session`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          transition_metals: selectedTMs,
+          dopants: selectedDopants,
+          fractions: payloadFractions,
+          potential: selectedPotential,
+        }),
+      });
+
+      if (!sessionRes.ok) {
+        const text = await sessionRes.text();
+        throw new Error(text || "Failed to create screening session.");
+      }
+
+      const { session_id } = await sessionRes.json();
+      const es = new EventSource(`${API_BASE}/run-stream/${session_id}`);
+
+      es.addEventListener("status", (evt) => {
+        const data = JSON.parse((evt as MessageEvent).data);
+        setScreeningProgress((prev) => ({
+          ...prev,
+          message: data.message || prev.message,
+          progress:
+            typeof data.progress === "number" ? data.progress : prev.progress,
+        }));
+      });
+
+      es.addEventListener("progress", (evt) => {
+        const data = JSON.parse((evt as MessageEvent).data);
+        setScreeningProgress((prev) => ({
+          ...prev,
+          message: data.message || prev.message,
+          progress:
+            typeof data.progress === "number" ? data.progress : prev.progress,
+          configIndex:
+            typeof data.config_index === "number"
+              ? data.config_index
+              : prev.configIndex,
+          configTotal:
+            typeof data.config_total === "number"
+              ? data.config_total
+              : prev.configTotal,
+        }));
+      });
+
+      es.addEventListener("config_done", (evt) => {
+        const data = JSON.parse((evt as MessageEvent).data);
+
+        setScreeningProgress((prev) => {
+          let etaSeconds = prev.etaSeconds;
+
+          if (
+            screeningStartedAt &&
+            typeof data.config_index === "number" &&
+            typeof data.config_total === "number" &&
+            data.config_index > 0
+          ) {
+            const elapsedSec = (Date.now() - screeningStartedAt) / 1000;
+            const avgSecPerConfig = elapsedSec / data.config_index;
+            const remainingConfigs = Math.max(
+              0,
+              data.config_total - data.config_index
+            );
+            etaSeconds = Math.round(avgSecPerConfig * remainingConfigs);
+          }
+
+          return {
+            ...prev,
+            message: data.message || prev.message,
+            progress:
+              typeof data.progress === "number"
+                ? data.progress
+                : prev.progress,
+            configIndex:
+              typeof data.config_index === "number"
+                ? data.config_index
+                : prev.configIndex,
+            configTotal:
+              typeof data.config_total === "number"
+                ? data.config_total
+                : prev.configTotal,
+            etaSeconds,
+          };
+        });
+
+        if (Array.isArray(data.configuration_energies)) {
+          setResult((prev) => ({
+            ...(prev ?? {
+              voltage: 0,
+              sodiated_energy: 0,
+              desodiated_energy: 0,
+              tm_sites: 0,
+              dopant_sites: 0,
+              chosen_tm: "",
+              chosen_dopant: "",
+              na_removed: 0,
+              mu_na: 0,
+            }),
+            potential: prev?.potential ?? selectedPotential,
+            n_configurations:
+              typeof data.config_total === "number"
+                ? data.config_total
+                : data.configuration_energies.length,
+            configuration_energies: data.configuration_energies,
+          }));
+        }
+      });
+
+      es.addEventListener("result", (evt) => {
+        const data = JSON.parse((evt as MessageEvent).data);
+        setResult(data);
+        setScreeningProgress((prev) => ({
+          ...prev,
+          message: "Screening completed",
+          progress: 1,
+          etaSeconds: 0,
+        }));
+      });
+
+      es.addEventListener("done", () => {
+        setLoading(false);
+        es.close();
+      });
+
+      es.addEventListener("error", () => {
+        setLoading(false);
+        es.close();
+      });
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : "Screening request failed.");
+      setLoading(false);
+    }
+  }
+
+  async function runMD() {
+    if (!result?.cif_sodiated_relaxed?.trim()) {
+      alert("No selected sodiated structure available for MD.");
+      return;
+    }
+
+    setMdLoading(true);
+    resetMDState();
+    setActiveStructureTab("md");
+    setMdStage("Creating MD session...");
+
+    try {
+      const sessionRes = await fetch(`${API_BASE}/run-md-session`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cif: result.cif_sodiated_relaxed,
+          potential: result.potential ?? selectedPotential,
+        }),
+      });
+
+      if (!sessionRes.ok) {
+        const text = await sessionRes.text();
+        throw new Error(text || "MD request failed.");
+      }
+
+      const { session_id } = await sessionRes.json();
+      setMdLive(true);
+      setMdStage("Streaming MD progress...");
+
+      const es = new EventSource(`${API_BASE}/run-md-stream/${session_id}`);
+
+      es.addEventListener("status", (evt) => {
+        const data = JSON.parse((evt as MessageEvent).data);
+        setMdStage(data.message || "Running MD...");
+        if (data.cif_md_start) {
+          setMdMeta((prev) => ({
+            ...(prev ?? {}),
+            cif_md_start: data.cif_md_start,
+            potential: result.potential ?? selectedPotential,
+            na_removed_for_md:
+              data.na_removed_for_md ?? prev?.na_removed_for_md,
+            na_vacancy_fraction:
+              data.na_vacancy_fraction ?? prev?.na_vacancy_fraction,
+          }));
+        }
+      });
+
+      es.addEventListener("meta", (evt) => {
+        const data = JSON.parse((evt as MessageEvent).data);
+        setMdMeta(data);
+        if (data.cif_md_start) setActiveStructureTab("md");
+      });
+
+      es.addEventListener("progress", (evt) => {
+        const data = JSON.parse((evt as MessageEvent).data);
+        setMdCurrentStep(data.step);
+        setMdCurrentTemp(data.temperature_k);
+        setMdTimePs((prev) => [...prev, data.time_ps]);
+        setMdMsdNa((prev) => [...prev, data.msd_na]);
+        setMdMsdNonNa((prev) => [...prev, data.msd_non_na]);
+      });
+
+      es.addEventListener("result", (evt) => {
+        const data = JSON.parse((evt as MessageEvent).data);
+        setMdMeta((prev) => ({
+          ...(prev ?? {}),
+          ...data,
+        }));
+      });
+
+      es.addEventListener("done", () => {
+        setMdStage("MD completed");
+        setMdLive(false);
+        setMdLoading(false);
+        es.close();
+      });
+
+      es.addEventListener("error", () => {
+        setMdLive(false);
+        setMdLoading(false);
+        setMdStage("MD stream failed.");
+        es.close();
+      });
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : "MD request failed.");
+      setMdLive(false);
+      setMdLoading(false);
+      setMdStage("");
+    }
+  }
+
+  const cifForTab = useMemo(() => {
+    if (activeStructureTab === "md") return mdMeta?.cif_md_start ?? "";
+    if (!result) return "";
+    if (activeStructureTab === "doped") return result.cif_doped ?? "";
+    if (activeStructureTab === "sod") return result.cif_sodiated_relaxed ?? "";
+    return result.cif_desodiated_relaxed ?? "";
+  }, [result, mdMeta, activeStructureTab]);
+
+  return (
+    <section className="relative overflow-hidden rounded-[36px] border border-white/70 bg-white/75 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl md:p-10">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(124,58,237,0.10),_transparent_22%),radial-gradient(circle_at_bottom_left,_rgba(59,130,246,0.08),_transparent_22%)]" />
+
+      <div className="relative">
+        <div className="inline-flex items-center gap-2 rounded-full border border-violet-200/70 bg-violet-50/80 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-violet-700 shadow-sm">
+          <IconExplorer />
+          Explorer
+        </div>
+
+        <div className="mt-10 grid grid-cols-1 gap-8 xl:grid-cols-[540px_minmax(0,1fr)]">
+          <SectionCard
+            title="Cathode Screening Setup"
+            subtitle="Choose transition metals, dopants, composition fractions, and an ML potential to screen candidate Na-ion cathodes."
+            rightSlot={
+              <StatusBadge tone={loading ? "violet" : "slate"} live={loading}>
+                {loading ? "Screening active" : "Idle"}
+              </StatusBadge>
+            }
+          >
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <InputCard label="ML potential">
+                <select
+                  value={selectedPotential}
+                  onChange={(e) =>
+                    setSelectedPotential(e.target.value as PotentialOption)
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-base text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white"
+                >
+                  <option value="uma">UMA</option>
+                  <option value="orb">ORB</option>
+                </select>
+              </InputCard>
+
+              <div className="rounded-[22px] border border-slate-200/80 bg-white/90 p-4 shadow-sm">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  Selection summary
+                </div>
+                <div className="space-y-2 text-sm text-slate-600">
+                  <div>
+                    <span className="font-semibold text-slate-900">TM:</span>{" "}
+                    {selectedTMs.join(", ") || "—"}
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-900">Dopants:</span>{" "}
+                    {selectedDopants.join(", ") || "—"}
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-900">Potential:</span>{" "}
+                    {selectedPotentialLabel}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-baseline justify-between gap-3">
+                  <h4 className="text-lg font-semibold text-slate-900">
+                    Transition metals
+                  </h4>
+                  <span className="text-xs text-slate-400">{tmSubtitle}</span>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Allowed on the TM layer.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {TM_OPTIONS.map((el) => (
+                    <ExplorerChip
+                      key={el}
+                      label={el}
+                      checked={selectedTMs.includes(el)}
+                      onToggle={() =>
+                        toggleItem(selectedTMs, el, setSelectedTMs)
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-baseline justify-between gap-3">
+                  <h4 className="text-lg font-semibold text-slate-900">
+                    Dopants
+                  </h4>
+                  <span className="text-xs text-slate-400">{dopSubtitle}</span>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Select one or more dopants for the screening set.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {DOPANT_OPTIONS.map((el) => (
+                    <ExplorerChip
+                      key={el}
+                      label={el}
+                      checked={selectedDopants.includes(el)}
+                      onToggle={() =>
+                        toggleItem(selectedDopants, el, setSelectedDopants)
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-[26px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#fafaff_100%)] p-5 shadow-sm">
+              <div className="flex items-baseline justify-between gap-3">
+                <h4 className="text-lg font-semibold text-slate-900">
+                  Composition
+                </h4>
+                <StatusBadge tone={fractionsValid ? "emerald" : "rose"}>
+                  Sum = {fractionSum.toFixed(3)}
+                </StatusBadge>
+              </div>
+
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                Fill fractions for the selected transition metals and dopants.
+                Na is fixed at 1 and O is fixed at 2.
+              </p>
+
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {selectedElements.map((el) => (
+                  <div
+                    key={el}
+                    className="rounded-[20px] border border-slate-200 bg-white p-4"
+                  >
+                    <label className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-semibold text-slate-900">
+                        {el}
+                      </span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="1"
+                        value={fractions[el] ?? ""}
+                        onChange={(e) =>
+                          setFractions((prev) => ({
+                            ...prev,
+                            [el]: e.target.value,
+                          }))
+                        }
+                        className="h-11 w-28 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white"
+                        placeholder="0.00"
+                      />
+                    </label>
+                  </div>
+                ))}
+
+                <div className="rounded-[20px] border border-slate-200 bg-slate-50/80 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-slate-500">Na</span>
+                    <span className="text-sm text-slate-700">1 (fixed)</span>
+                  </div>
+                </div>
+
+                <div className="rounded-[20px] border border-slate-200 bg-slate-50/80 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-slate-500">O</span>
+                    <span className="text-sm text-slate-700">2 (fixed)</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-[20px] border border-slate-200 bg-slate-50/80 p-4">
+                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  Formula preview
+                </div>
+                <div className="mt-2 text-base font-semibold text-slate-900">
+                  {compositionPreview}
+                </div>
+                {!fractionsValid && (
+                  <div className="mt-2 text-xs text-rose-600">
+                    Enter valid fractions between 0 and 1, and make sure the total
+                    equals exactly 1.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-7 flex flex-wrap items-center gap-3">
+              <button
+                onClick={runScreening}
+                disabled={!canRun || loading || !fractionsValid}
+                className="inline-flex items-center gap-2 rounded-xl bg-[linear-gradient(135deg,#0f172a_0%,#111827_100%)] px-5 py-3 text-base font-semibold text-white shadow-[0_14px_34px_rgba(15,23,42,0.25)] transition hover:-translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <IconPlay />
+                {loading ? `Running ${selectedPotentialLabel}...` : "Run screening"}
+              </button>
+
+              {loading && <Spinner label="Screening in progress..." />}
+            </div>
+
+            {loading && (
+              <div className="mt-6">
+                <ProgressCard {...screeningProgress} />
+              </div>
+            )}
+          </SectionCard>
+
+          <SectionCard
+            title="Structure Explorer"
+            subtitle="Inspect the generated structures, compare stages, and review the selected candidate."
+            rightSlot={
+              cifForTab ? (
+                <StatusBadge tone="emerald">
+                  {activeStructureTab === "doped"
+                    ? "Doped"
+                    : activeStructureTab === "sod"
+                    ? "Sodiated relaxed"
+                    : activeStructureTab === "desod"
+                    ? "Desodiated relaxed"
+                    : "MD start"}
+                </StatusBadge>
+              ) : undefined
+            }
+          >
+            {!result && !mdMeta ? (
+              <EmptyState
+                title="No cathode result yet"
+                text="Run a screening job to populate voltage results, generated configurations, and structure previews."
+                icon={<IconExplorer />}
+              />
+            ) : (
+              <>
+                <div className="mb-5 flex flex-wrap gap-2">
+                  <ExplorerStructureTabButton
+                    active={activeStructureTab === "doped"}
+                    label="Doped"
+                    onClick={() => setActiveStructureTab("doped")}
+                  />
+                  <ExplorerStructureTabButton
+                    active={activeStructureTab === "sod"}
+                    label="Sodiated relaxed"
+                    onClick={() => setActiveStructureTab("sod")}
+                  />
+                  <ExplorerStructureTabButton
+                    active={activeStructureTab === "desod"}
+                    label="Desodiated relaxed"
+                    onClick={() => setActiveStructureTab("desod")}
+                  />
+                  {mdMeta?.cif_md_start && (
+                    <ExplorerStructureTabButton
+                      active={activeStructureTab === "md"}
+                      label="MD start"
+                      onClick={() => setActiveStructureTab("md")}
+                    />
+                  )}
+                </div>
+
+                <ViewerPanel
+                  cifText={cifForTab || ""}
+                  emptyText="No structure is available for this stage yet."
+                />
+              </>
+            )}
+          </SectionCard>
+        </div>
+
+        {result && (
+          <div className="mt-8 space-y-8">
+            {result.configuration_energies &&
+              result.configuration_energies.length > 0 && (
+                <SectionCard
+                  title="Generated Configurations"
+                  subtitle={`${result.n_configurations ?? result.configuration_energies.length} configurations were generated and ranked by sodiated total energy.`}
+                >
+                  <ExplorerConfigurationGrid
+                    configs={result.configuration_energies}
+                    selectedIndex={result.selected_configuration?.index}
+                  />
+                </SectionCard>
+              )}
+
+            <div className="grid grid-cols-1 gap-8 xl:grid-cols-[540px_minmax(0,1fr)]">
+              <SectionCard
+                title="Voltage Result"
+                subtitle="Summary of the selected composition and computed electrochemical metrics."
+                rightSlot={<StatusBadge tone="violet">{resultPotentialLabel}</StatusBadge>}
+              >
+                <div className="rounded-[26px] border border-violet-200 bg-[linear-gradient(135deg,#faf5ff_0%,#eef2ff_100%)] p-6 shadow-sm">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                    <div>
+                      <div className="text-sm text-violet-700">
+                        TM:{" "}
+                        <span className="font-semibold text-violet-900">
+                          {result.chosen_tm}
+                        </span>{" "}
+                        · Dopant:{" "}
+                        <span className="font-semibold text-violet-900">
+                          {result.chosen_dopant}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-4xl font-semibold tracking-tight text-slate-950">
+                        {Number(result.voltage).toFixed(3)}{" "}
+                        <span className="text-base font-medium text-slate-500">V</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {result.composition && (
+                    <div className="mt-5 rounded-[20px] border border-white/70 bg-white/80 p-4 shadow-sm">
+                      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                        Composition
+                      </div>
+                      <div className="mt-2 text-base font-semibold text-slate-900">
+                        Na1{" "}
+                        {Object.entries(result.composition)
+                          .filter(([, v]) => Number(v) > 0)
+                          .map(([k, v]) => `${k}${v}`)
+                          .join(" ")}{" "}
+                        O2
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <MetricCard
+                    label="Sodiated energy"
+                    value={`${result.sodiated_energy.toFixed(3)} eV`}
+                  />
+                  <MetricCard
+                    label="Desodiated energy"
+                    value={`${result.desodiated_energy.toFixed(3)} eV`}
+                  />
+                  <MetricCard label="TM sites" value={result.tm_sites} />
+                  <MetricCard label="Dopant sites" value={result.dopant_sites} />
+                  <MetricCard
+                    label="Na removed for voltage"
+                    value={result.na_removed}
+                  />
+                  <MetricCard
+                    label={`μNa (${resultPotentialLabel})`}
+                    value={`${result.mu_na.toFixed(3)} eV`}
+                  />
+                </div>
+
+                <div className="mt-6 rounded-[24px] border border-emerald-200 bg-emerald-50/70 p-5 shadow-sm">
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <div className="text-base font-semibold text-emerald-900">
+                        Optional live MD diffusion check
+                      </div>
+                      <div className="mt-1 text-sm leading-6 text-emerald-800/80">
+                        Run MD on the selected sodiated relaxed structure and stream
+                        Na / non-Na MSD live.
+                      </div>
+                    </div>
+
+                    <div>
+                      <button
+                        type="button"
+                        onClick={runMD}
+                        disabled={mdLoading || !result.cif_sodiated_relaxed?.trim()}
+                        className="inline-flex items-center gap-2 rounded-xl bg-[linear-gradient(135deg,#059669_0%,#10b981_100%)] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <IconPulse />
+                        {mdLoading
+                          ? `Streaming ${resultPotentialLabel} MD...`
+                          : "Run MD to check Na diffusion"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </SectionCard>
+
+              <SectionCard
+                title="Active Structure Preview"
+                subtitle="View the chosen structure stage in the same viewer style used across the app."
+              >
+                <ViewerPanel
+                  cifText={cifForTab || ""}
+                  emptyText="No structure available yet."
+                />
+              </SectionCard>
+            </div>
+          </div>
+        )}
+
+        {(mdLoading || mdMeta || mdTimePs.length > 0) && (
+          <div className="mt-8">
+            <SectionCard
+              title="Live MD Diffusion Check"
+              subtitle="Na and non-Na mean-squared displacement stream live from the backend."
+              rightSlot={
+                <StatusBadge tone={mdLive ? "violet" : "emerald"} live={mdLive}>
+                  {mdLive ? "Streaming live" : "Latest MD state"}
+                </StatusBadge>
+              }
+            >
+              {mdLoading && (
+                <div className="mb-6 flex items-center gap-3">
+                  <Spinner label={mdStage || `Streaming ${selectedPotentialLabel} MD...`} />
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <MetricCard label="Potential" value={mdPotentialLabel} />
+                <MetricCard
+                  label="Na vacancy fraction"
+                  value={
+                    mdMeta?.na_vacancy_fraction != null
+                      ? `${(100 * mdMeta.na_vacancy_fraction).toFixed(0)}%`
+                      : "—"
+                  }
+                />
+                <MetricCard
+                  label="Na removed for MD"
+                  value={mdMeta?.na_removed_for_md ?? "—"}
+                />
+                <MetricCard
+                  label="MD temperature"
+                  value={
+                    mdMeta?.temperature_k != null
+                      ? `${mdMeta.temperature_k} K`
+                      : "—"
+                  }
+                />
+                <MetricCard
+                  label="Current step"
+                  value={`${mdCurrentStep}${mdMeta?.steps ? ` / ${mdMeta.steps}` : ""}`}
+                />
+                <MetricCard
+                  label="Current T"
+                  value={
+                    mdCurrentTemp != null
+                      ? `${mdCurrentTemp.toFixed(1)} K`
+                      : "—"
+                  }
+                />
+                <MetricCard
+                  label="Average T"
+                  value={
+                    mdMeta?.avg_temperature_k != null
+                      ? `${mdMeta.avg_temperature_k.toFixed(1)} K`
+                      : "—"
+                  }
+                />
+                <MetricCard
+                  label="Final T"
+                  value={
+                    mdMeta?.final_temperature_k != null
+                      ? `${mdMeta.final_temperature_k.toFixed(1)} K`
+                      : "—"
+                  }
+                />
+              </div>
+
+              <div className="mt-6">
+                <LiveMSDChart
+                  timePs={mdTimePs}
+                  msdNa={mdMsdNa}
+                  msdNonNa={mdMsdNonNa}
+                  live={mdLive}
+                />
+              </div>
+            </SectionCard>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export default function Page() {
   const [activeTab, setActiveTab] = useState<AppTab>("relax");
 
@@ -1349,33 +2640,7 @@ export default function Page() {
           </TabButton>
         </div>
 
-        {activeTab === "explorer" && (
-          <section className="relative overflow-hidden rounded-[36px] border border-white/70 bg-white/75 p-8 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl md:p-10">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(124,58,237,0.10),_transparent_22%),radial-gradient(circle_at_bottom_left,_rgba(59,130,246,0.08),_transparent_22%)]" />
-            <div className="relative">
-              <div className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-violet-700 shadow-sm">
-                <IconExplorer />
-                Explorer
-              </div>
-              <h2 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
-                Cathode Explorer
-              </h2>
-              <p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600 md:text-xl">
-                This area is ready for a richer explorer experience — filters,
-                composition search, phase metadata, and structure cards would fit
-                beautifully here.
-              </p>
-
-              <div className="mt-8">
-                <EmptyState
-                  title="Explorer UI placeholder"
-                  text="You can turn this into a searchable materials gallery with crystal previews, chemistry filters, and quick property stats."
-                  icon={<IconExplorer />}
-                />
-              </div>
-            </div>
-          </section>
-        )}
+        {activeTab === "explorer" && <CathodeExplorer />}
 
         {activeTab === "md" && <MolecularDynamicsPanel />}
 
