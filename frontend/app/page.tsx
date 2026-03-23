@@ -2193,7 +2193,8 @@ const entropyLabel = entropyLevel === "high"
                   </div>
                 )}
               </div>
-
+            </div>
+            
             <div className="mt-7 flex flex-wrap items-center gap-3">
               <button
                 onClick={runScreening}
