@@ -1310,10 +1310,16 @@ export default function Page() {
           </div>
 
           <div className="mt-6">
-            <h1 className="max-w-5xl text-5xl font-semibold tracking-tight text-slate-950 md:text-6xl">
-              CrystallAIne
+            <h1 className="max-w-5xl text-5xl font-semibold tracking-tight md:text-6xl">
+              <span className="text-slate-950">Crystall</span>
+              <span className="relative inline-block">
+                <span className="bg-[linear-gradient(135deg,#67e8f9_0%,#60a5fa_30%,#818cf8_65%,#c084fc_100%)] bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(96,165,250,0.30)]">
+                  AI
+                </span>
+                <span className="pointer-events-none absolute inset-0 blur-xl opacity-40 bg-[linear-gradient(135deg,#67e8f9_0%,#60a5fa_30%,#818cf8_65%,#c084fc_100%)]" />
+                </span>
+                <span className="text-slate-950">ne</span>
             </h1>
-
             <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600 md:text-2xl md:leading-9">
               Molecular Simulations with Machine Learning Potentials
             </p>
