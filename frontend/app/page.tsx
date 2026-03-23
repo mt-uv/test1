@@ -199,7 +199,6 @@ function IconExplorer() {
   );
 }
 
-
 function Spinner({ label }: { label: string }) {
   return (
     <div className="inline-flex items-center gap-2 rounded-full border border-violet-200/80 bg-violet-50/90 px-3.5 py-2 text-xs font-semibold text-violet-700 shadow-sm backdrop-blur">
@@ -1298,9 +1297,7 @@ export default function Page() {
       </div>
 
       <div className="relative mx-auto max-w-7xl px-6 py-8 md:px-10 md:py-12">
-        <HeroCrystalMesh />
-
-        <div className="relative z-10 mb-10 max-w-3xl pr-[420px]">
+        <div className="mb-10">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/75 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 shadow-sm backdrop-blur">
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-100 text-violet-700">
               <IconSpark />
@@ -1317,8 +1314,8 @@ export default function Page() {
                 </span>
 
                 <span className="pointer-events-none absolute inset-0 blur-lg opacity-5 bg-[linear-gradient(135deg,#67e8f9_0%,#60a5fa_30%,#818cf8_65%,#c084fc_100%)]" />
-              </span>
-              <span className="text-slate-950">ne</span>
+                </span>
+                <span className="text-slate-950">ne</span>
             </h1>
             <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600 md:text-2xl md:leading-9">
               Molecular Simulations with Machine Learning Potentials
