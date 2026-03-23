@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import CrystalViewer from "./components/CrystalViewer";
 
 const API_BASE =
@@ -128,10 +128,7 @@ function IconStructure() {
 function IconPlay() {
   return (
     <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none">
-      <path
-        d="M8 6.5V17.5L17 12L8 6.5Z"
-        className="fill-current"
-      />
+      <path d="M8 6.5V17.5L17 12L8 6.5Z" className="fill-current" />
     </svg>
   );
 }
@@ -254,38 +251,6 @@ function StatusBadge({
         )}
       />
       {children}
-    </div>
-  );
-}
-
-function StatChip({
-  label,
-  value,
-  accent = "violet",
-}: {
-  label: string;
-  value: React.ReactNode;
-  accent?: "violet" | "blue" | "emerald";
-}) {
-  const accents = {
-    violet:
-      "from-violet-500/10 to-fuchsia-500/10 border-violet-200/70 text-violet-700",
-    blue: "from-sky-500/10 to-indigo-500/10 border-sky-200/70 text-sky-700",
-    emerald:
-      "from-emerald-500/10 to-teal-500/10 border-emerald-200/70 text-emerald-700",
-  };
-
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border bg-gradient-to-br px-4 py-3 shadow-sm",
-        accents[accent]
-      )}
-    >
-      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-        {label}
-      </div>
-      <div className="mt-1 text-base font-semibold text-slate-900">{value}</div>
     </div>
   );
 }
@@ -756,7 +721,7 @@ function AllAtomMSDChart({
   );
 }
 
-function GenericMDPanel() {
+function MolecularDynamicsPanel() {
   const [file, setFile] = useState<File | null>(null);
   const [previewCif, setPreviewCif] = useState("");
   const [previewAtomCount, setPreviewAtomCount] = useState<number | null>(null);
@@ -980,31 +945,13 @@ function GenericMDPanel() {
             </div>
 
             <h2 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
-              Run Generic MD
+              Run Molecular Dynamics
             </h2>
 
             <p className="mt-4 max-w-4xl text-lg leading-8 text-slate-600 md:text-xl">
               Upload any structure, choose the ML potential, run NVT Langevin MD,
               and watch species-resolved MSD stream live as the simulation evolves.
             </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <StatChip
-              label="Potential"
-              value={potential.toUpperCase()}
-              accent="violet"
-            />
-            <StatChip
-              label="Temperature"
-              value={`${temperatureK} K`}
-              accent="blue"
-            />
-            <StatChip
-              label="Duration"
-              value={`${totalTimePs} ps`}
-              accent="emerald"
-            />
           </div>
         </div>
 
@@ -1021,7 +968,7 @@ function GenericMDPanel() {
             <div className="grid grid-cols-1 gap-4">
               <UploadCard
                 title="Upload a structure file"
-                subtitle="Supports .cif, .vasp, .poscar, .xyz, and .traj for generic MD."
+                subtitle="Supports .cif, .vasp, .poscar, .xyz, and .traj for molecular dynamics."
                 onFile={handleFileChange}
                 accept=".cif,.vasp,.poscar,.xyz,.traj"
                 buttonLabel="Choose file"
@@ -1112,7 +1059,7 @@ function GenericMDPanel() {
                 className="inline-flex items-center gap-2 rounded-xl bg-[linear-gradient(135deg,#0f172a_0%,#111827_100%)] px-5 py-3 text-base font-semibold text-white shadow-[0_14px_34px_rgba(15,23,42,0.25)] transition hover:-translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <IconPlay />
-                {loading ? "Running MD..." : "Run MD"}
+                {loading ? "Running MD..." : "Run molecular dynamics"}
               </button>
 
               <button
@@ -1163,7 +1110,7 @@ function GenericMDPanel() {
         <div className="mt-8">
           <SectionCard
             title="Live MSD Output"
-            subtitle="Track species-wise displacement over time while the MD simulation runs."
+            subtitle="Track species-wise displacement over time while the simulation runs."
           >
             <AllAtomMSDChart
               timePs={timePs}
@@ -1210,15 +1157,6 @@ export default function Page() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [resultId, setResultId] = useState<string | null>(null);
   const [finalEnergy, setFinalEnergy] = useState<number | null>(null);
-
-  const relaxSummary = useMemo(() => {
-    return {
-      structure: preview?.filename || file?.name || "None",
-      atoms: preview?.n_atoms ?? "—",
-      optimizer,
-      potential: potential.toUpperCase(),
-    };
-  }, [preview, file, optimizer, potential]);
 
   async function handlePreview() {
     if (!file) return;
@@ -1304,7 +1242,6 @@ export default function Page() {
       }
 
       const { session_id } = await sessionRes.json();
-
       const es = new EventSource(`${API_BASE}/relax-upload-stream/${session_id}`);
 
       es.addEventListener("meta", (e) => {
@@ -1372,40 +1309,15 @@ export default function Page() {
             Materials ML Studio
           </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
-            <div>
-              <h1 className="max-w-5xl text-5xl font-semibold tracking-tight text-slate-950 md:text-6xl">
-                Molecular Simulations with Machine Learning Potentials
-              </h1>
+          <div className="mt-6">
+            <h1 className="max-w-5xl text-5xl font-semibold tracking-tight text-slate-950 md:text-6xl">
+              Molecular Simulations with Machine Learning Potentials
+            </h1>
 
-              <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600 md:text-2xl md:leading-9">
-                A cleaner workflow for structure relaxation, live MD, and crystal
-                inspection — all in one interface.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 self-start">
-              <StatChip
-                label="Tabs"
-                value="Explorer / Relax / MD"
-                accent="violet"
-              />
-              <StatChip
-                label="Viewer"
-                value="Interactive crystal"
-                accent="blue"
-              />
-              <StatChip
-                label="Streaming"
-                value="Logs + MSD"
-                accent="emerald"
-              />
-              <StatChip
-                label="Export"
-                value="CIF + trajectory"
-                accent="violet"
-              />
-            </div>
+            <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600 md:text-2xl md:leading-9">
+              A cleaner workflow for structure relaxation, molecular dynamics,
+              and crystal inspection — all in one interface.
+            </p>
           </div>
         </div>
 
@@ -1431,7 +1343,7 @@ export default function Page() {
             onClick={() => setActiveTab("md")}
             icon={<IconPulse />}
           >
-            Run Generic MD
+            Run Molecular Dynamics
           </TabButton>
         </div>
 
@@ -1463,7 +1375,7 @@ export default function Page() {
           </section>
         )}
 
-        {activeTab === "md" && <GenericMDPanel />}
+        {activeTab === "md" && <MolecularDynamicsPanel />}
 
         {activeTab === "relax" && (
           <section className="relative overflow-hidden rounded-[36px] border border-white/70 bg-white/75 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl md:p-10">
@@ -1485,33 +1397,6 @@ export default function Page() {
                     Upload a structure, preview it, choose the potential and
                     optimizer, then stream the relaxation output in real time.
                   </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <StatChip
-                    label="Potential"
-                    value={relaxSummary.potential}
-                    accent="violet"
-                  />
-                  <StatChip
-                    label="Optimizer"
-                    value={relaxSummary.optimizer}
-                    accent="blue"
-                  />
-                  <StatChip
-                    label="Atoms"
-                    value={relaxSummary.atoms}
-                    accent="emerald"
-                  />
-                  <StatChip
-                    label="Structure"
-                    value={
-                      <span className="block max-w-[120px] truncate">
-                        {relaxSummary.structure}
-                      </span>
-                    }
-                    accent="violet"
-                  />
                 </div>
               </div>
 
