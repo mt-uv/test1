@@ -1693,7 +1693,7 @@ const entropyOverR = useMemo(() => {
 }, [selectedElements, fractions]);
 
 const entropyLevel = useMemo<"low" | "medium" | "high">(() => {
-  if (entropyOverR >= 1.6) return "high";
+  if (entropyOverR >= 1.5) return "high";
   if (entropyOverR >= 1.0) return "medium";
   return "low";
 }, [entropyOverR]);
@@ -2178,10 +2178,10 @@ const entropyLabel = entropyLevel === "high"
                 {entropyLevel === "high" && (
                   <div className="mt-4 rounded-[16px] border border-emerald-200 bg-emerald-50/70 p-3">
                     <div className="text-sm font-semibold text-emerald-900">
-                      High entropy criterion satisfied
+                      High entropy material
                     </div>
                     <div className="mt-1 text-xs leading-6 text-emerald-800">
-                      The configurational entropy exceeds 1.6R for the selected TM/dopant composition.
+                      The configurational entropy exceeds 1.5R for the selected TM/dopant composition.
                     </div>
                   </div>
                 )}
