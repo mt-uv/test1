@@ -201,9 +201,9 @@ function IconExplorer() {
 
 function HeroCrystalMesh() {
   return (
-    <div className="pointer-events-none absolute -right-8 top-1/2 hidden h-[320px] w-[520px] -translate-y-1/2 opacity-80 lg:block">
+    <div className="pointer-events-none absolute right-0 top-6 hidden h-[360px] w-[560px] lg:block">
       <svg
-        viewBox="0 0 520 320"
+        viewBox="0 0 560 360"
         className="h-full w-full"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
@@ -211,96 +211,96 @@ function HeroCrystalMesh() {
         <defs>
           <linearGradient
             id="meshLine"
-            x1="40"
+            x1="80"
             y1="40"
-            x2="460"
-            y2="260"
+            x2="500"
+            y2="280"
             gradientUnits="userSpaceOnUse"
           >
-            <stop offset="0%" stopColor="#67e8f9" stopOpacity="0.55" />
-            <stop offset="50%" stopColor="#60a5fa" stopOpacity="0.38" />
-            <stop offset="100%" stopColor="#818cf8" stopOpacity="0.2" />
+            <stop offset="0%" stopColor="#67e8f9" stopOpacity="0.9" />
+            <stop offset="50%" stopColor="#38bdf8" stopOpacity="0.75" />
+            <stop offset="100%" stopColor="#818cf8" stopOpacity="0.45" />
           </linearGradient>
 
           <radialGradient id="nodeGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#a5f3fc" stopOpacity="0.95" />
-            <stop offset="45%" stopColor="#60a5fa" stopOpacity="0.55" />
+            <stop offset="0%" stopColor="#ecfeff" stopOpacity="1" />
+            <stop offset="45%" stopColor="#67e8f9" stopOpacity="0.95" />
             <stop offset="100%" stopColor="#60a5fa" stopOpacity="0" />
           </radialGradient>
 
           <filter id="softBlur" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="8" />
+            <feGaussianBlur stdDeviation="10" />
           </filter>
         </defs>
 
         <ellipse
-          cx="340"
-          cy="150"
-          rx="170"
-          ry="110"
+          cx="365"
+          cy="165"
+          rx="180"
+          ry="125"
           fill="#67e8f9"
-          opacity="0.08"
+          opacity="0.16"
           filter="url(#softBlur)"
         />
         <ellipse
-          cx="400"
-          cy="180"
+          cx="430"
+          cy="195"
           rx="120"
           ry="90"
           fill="#60a5fa"
-          opacity="0.08"
+          opacity="0.14"
           filter="url(#softBlur)"
         />
 
-        <g stroke="url(#meshLine)" strokeWidth="1.4">
-          <line x1="120" y1="80" x2="210" y2="55" />
-          <line x1="210" y1="55" x2="300" y2="95" />
-          <line x1="300" y1="95" x2="390" y2="70" />
-          <line x1="390" y1="70" x2="455" y2="130" />
-          <line x1="300" y1="95" x2="280" y2="175" />
-          <line x1="280" y1="175" x2="365" y2="210" />
-          <line x1="365" y1="210" x2="455" y2="130" />
-          <line x1="210" y1="55" x2="180" y2="145" />
-          <line x1="180" y1="145" x2="280" y2="175" />
-          <line x1="120" y1="80" x2="180" y2="145" />
-          <line x1="180" y1="145" x2="120" y2="235" />
-          <line x1="120" y1="235" x2="220" y2="255" />
-          <line x1="220" y1="255" x2="365" y2="210" />
-          <line x1="280" y1="175" x2="220" y2="255" />
+        <g stroke="url(#meshLine)" strokeWidth="1.8">
+          <line x1="130" y1="90" x2="225" y2="60" />
+          <line x1="225" y1="60" x2="320" y2="105" />
+          <line x1="320" y1="105" x2="410" y2="78" />
+          <line x1="410" y1="78" x2="485" y2="145" />
+          <line x1="320" y1="105" x2="295" y2="190" />
+          <line x1="295" y1="190" x2="385" y2="228" />
+          <line x1="385" y1="228" x2="485" y2="145" />
+          <line x1="225" y1="60" x2="190" y2="155" />
+          <line x1="190" y1="155" x2="295" y2="190" />
+          <line x1="130" y1="90" x2="190" y2="155" />
+          <line x1="190" y1="155" x2="130" y2="255" />
+          <line x1="130" y1="255" x2="235" y2="278" />
+          <line x1="235" y1="278" x2="385" y2="228" />
+          <line x1="295" y1="190" x2="235" y2="278" />
         </g>
 
         <polygon
-          points="210,55 300,95 280,175 180,145"
+          points="225,60 320,105 295,190 190,155"
           fill="#67e8f9"
-          opacity="0.06"
+          opacity="0.12"
         />
         <polygon
-          points="300,95 390,70 455,130 365,210 280,175"
+          points="320,105 410,78 485,145 385,228 295,190"
           fill="#60a5fa"
-          opacity="0.05"
+          opacity="0.1"
         />
         <polygon
-          points="180,145 280,175 220,255 120,235"
+          points="190,155 295,190 235,278 130,255"
           fill="#818cf8"
-          opacity="0.04"
+          opacity="0.08"
         />
 
         {[
-          [120, 80, 16],
-          [210, 55, 18],
-          [300, 95, 20],
-          [390, 70, 15],
-          [455, 130, 17],
-          [180, 145, 16],
-          [280, 175, 18],
-          [365, 210, 16],
-          [120, 235, 14],
-          [220, 255, 15],
+          [130, 90, 18],
+          [225, 60, 20],
+          [320, 105, 22],
+          [410, 78, 17],
+          [485, 145, 18],
+          [190, 155, 18],
+          [295, 190, 20],
+          [385, 228, 18],
+          [130, 255, 15],
+          [235, 278, 16],
         ].map(([cx, cy, r], i) => (
           <g key={i}>
-            <circle cx={cx} cy={cy} r={r} fill="url(#nodeGlow)" opacity="0.55" />
-            <circle cx={cx} cy={cy} r="4.5" fill="#e0f2fe" opacity="0.95" />
-            <circle cx={cx} cy={cy} r="2.2" fill="#60a5fa" opacity="0.9" />
+            <circle cx={cx} cy={cy} r={r} fill="url(#nodeGlow)" opacity="0.9" />
+            <circle cx={cx} cy={cy} r="5" fill="#f0fdff" />
+            <circle cx={cx} cy={cy} r="2.4" fill="#38bdf8" />
           </g>
         ))}
       </svg>
@@ -1408,7 +1408,7 @@ export default function Page() {
       <div className="relative mx-auto max-w-7xl px-6 py-8 md:px-10 md:py-12">
         <HeroCrystalMesh />
 
-        <div className="relative z-10 mb-10 max-w-3xl">
+        <div className="relative z-10 mb-10 max-w-3xl pr-[420px]">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/75 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 shadow-sm backdrop-blur">
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-100 text-violet-700">
               <IconSpark />
