@@ -943,21 +943,12 @@ function MolecularDynamicsPanel() {
               <IconPulse />
               Molecular Dynamics
             </div>
-
-            <h2 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
-              Run Molecular Dynamics
-            </h2>
-
-            <p className="mt-4 max-w-4xl text-lg leading-8 text-slate-600 md:text-xl">
-              Upload any structure, choose the ML potential, run NVT Langevin MD,
-              and watch species-resolved MSD stream live as the simulation evolves.
-            </p>
           </div>
         </div>
 
         <div className="mt-10 grid grid-cols-1 gap-8 xl:grid-cols-[540px_minmax(0,1fr)]">
           <SectionCard
-            title="Simulation Setup"
+            title="MD Setup"
             subtitle="Prepare a structure, choose MD settings, and launch a live run."
             rightSlot={
               <StatusBadge tone={loading ? "violet" : "slate"} live={loading}>
