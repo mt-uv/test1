@@ -510,6 +510,7 @@ function AllAtomMSDChart({
         );
 
   const xs = timePs.slice(0, n);
+  const hasData = n > 0;
   const maxX = Math.max(...xs, 1);
 
   const allY = species.flatMap((sp) => msdBySpecies[sp].slice(0, n));
@@ -544,8 +545,11 @@ function AllAtomMSDChart({
             Streaming mean-squared displacement during NVT MD
           </div>
         </div>
-        <StatusBadge tone={live ? "violet" : "emerald"} live={live}>
-          {live ? "Streaming live" : "Run complete"}
+        <StatusBadge
+          tone={live ? "violet" : hasData ? "emerald" : "slate"}
+          live={live}
+        >
+          {live ? "Streaming live" : hasData ? "Run complete" : "Waiting"}
         </StatusBadge>
       </div>
 
@@ -1160,6 +1164,7 @@ function LiveMSDChart({
   const xs = timePs.slice(0, n);
   const ysNa = msdNa.slice(0, n);
   const ysNonNa = msdNonNa.slice(0, n);
+  const hasData = n > 0;
 
   const maxX = Math.max(...xs, 1);
   const maxY = Math.max(...ysNa, ...ysNonNa, 1e-6);
@@ -1190,8 +1195,11 @@ function LiveMSDChart({
             Na and non-Na displacement streamed during MD
           </div>
         </div>
-        <StatusBadge tone={live ? "violet" : "emerald"} live={live}>
-          {live ? "Streaming live" : "Run complete"}
+        <StatusBadge
+          tone={live ? "violet" : hasData ? "emerald" : "slate"}
+          live={live}
+        >
+          {live ? "Streaming live" : hasData ? "Run complete" : "Waiting"}
         </StatusBadge>
       </div>
 
